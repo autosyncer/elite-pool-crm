@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import pathlib
 from auth import router as auth_router
 from ConstructionLeads import router as leads_router
 from AmcLeads import router as amc_leads_router
@@ -58,9 +61,18 @@ app.include_router(notifications_router)
 app.include_router(users_router)
 
 
-@app.get("/")
+@app.get("/api")
 async def root():
     return {"message": "Welcome to Elite Pool Builders CRM API", "docs": "/docs"}
+
+# Serve React frontend static files
+static_dir = pathlib.Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        return FileResponse(static_dir / "index.html")
 
 if __name__ == "__main__":
     import uvicorn
