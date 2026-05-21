@@ -69,9 +69,14 @@ async def root():
 static_dir = pathlib.Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+    app.mount("/public", StaticFiles(directory=static_dir), name="public")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
+        # Serve static files (images, icons etc) if they exist
+        file_path = static_dir / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
         return FileResponse(static_dir / "index.html")
 
 if __name__ == "__main__":
