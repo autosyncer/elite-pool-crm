@@ -10,5 +10,5 @@ services:
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     ports:
-      - "8000:8000"
+      - "8001:8000"
     restart: unless-stopped
