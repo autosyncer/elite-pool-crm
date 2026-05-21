@@ -1,16 +1,3 @@
-# Stage 1 - Build React frontend
-FROM node:18-alpine AS frontend-builder
-
-WORKDIR /app/frontend
-
-COPY frontend/package*.json ./
-RUN npm install --legacy-peer-deps
-
-COPY frontend/ .
-
-RUN npm run build 2>&1
-
-# Stage 2 - Python backend + serve frontend
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -20,8 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
-# Copy built frontend into backend static folder
-COPY --from=frontend-builder /app/frontend/dist ./static
+# Copy pre-built frontend
+COPY frontend/dist ./static
 
 EXPOSE 8000
 
