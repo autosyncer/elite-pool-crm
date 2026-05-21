@@ -4,11 +4,11 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 COPY frontend/ .
 
-RUN npm run build
+RUN npm run build 2>&1
 
 # Stage 2 - Python backend + serve frontend
 FROM python:3.11-slim
