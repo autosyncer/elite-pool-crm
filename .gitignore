@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Scratch / debug files
+scratch/
+backend/scratch/
