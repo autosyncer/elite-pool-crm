@@ -10,10 +10,12 @@ const SendToClientPage = () => {
 
   if (!checkAccess('send')) return <Navigate to="/dashboard" />;
 
-  const filteredLeads = leads.filter(l =>
-    l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    l.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredLeads = leads.filter(l => {
+    const name = l.name ? String(l.name).toLowerCase() : '';
+    const id = l.id ? String(l.id).toLowerCase() : '';
+    const q = searchQuery.toLowerCase();
+    return name.includes(q) || id.includes(q);
+  });
 
   const selectedLead  = leads.find(l => l.id === selectedLeadId);
   const leadQuote     = quotes.find(q => q.leadId === selectedLeadId);

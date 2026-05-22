@@ -52,7 +52,10 @@ const ReviewsPage = () => {
 
   const filtered = reviews.filter(r => {
     const q = search.toLowerCase();
-    const matchesSearch = r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.lead_code.toLowerCase().includes(q);
+    const rName = r.name ? String(r.name).toLowerCase() : '';
+    const rPhone = r.phone ? String(r.phone).toLowerCase() : '';
+    const rLeadCode = r.lead_code ? String(r.lead_code).toLowerCase() : '';
+    const matchesSearch = rName.includes(q) || rPhone.includes(q) || rLeadCode.includes(q);
     const matchesRating = ratingFilter === 'all' ? true : 
                          ratingFilter === 'high' ? r.rating >= 4 :
                          ratingFilter === 'low' ? r.rating <= 2 :

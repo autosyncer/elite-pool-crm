@@ -188,7 +188,7 @@ const SiteAccountsPage = ({ company }) => {
   };
 
   const filtered = siteAccounts.filter(s => {
-    const matchesSearch = s.siteName.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (s.siteName || '').toLowerCase().includes((search || '').toLowerCase());
     if (company === 'elitePool') {
       return matchesSearch && s.isElitePool && s.projectType === activeTab;
     }

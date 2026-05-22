@@ -234,13 +234,17 @@ const ConstructionPage = () => {
               {(() => {
                 const filteredSites = localSites.filter(s => {
                   const q = search.toLowerCase();
-                  return s.id.toLowerCase().includes(q) || s.client.toLowerCase().includes(q) || (s.location && s.location.toLowerCase().includes(q)) || (s.status && s.status.toLowerCase().includes(q));
+                  const sId = s.id ? String(s.id).toLowerCase() : '';
+                  const sClient = s.client ? String(s.client).toLowerCase() : '';
+                  const sLocation = s.location ? String(s.location).toLowerCase() : '';
+                  const sStatus = s.status ? String(s.status).toLowerCase() : '';
+                  return sId.includes(q) || sClient.includes(q) || sLocation.includes(q) || sStatus.includes(q);
                 });
-                return filteredSites.length > 0 ? filteredSites.map(s => (
-                  <tr key={s.id}>
+                return filteredSites.length > 0 ? filteredSites.map((s, index) => (
+                  <tr key={s.id || index}>
                     <td style={{ fontSize: '12px', color: 'var(--sky)', fontWeight: 600 }}>{s.id}</td>
                     <td>
-                      <div style={{ fontWeight: 700 }}>{s.client}</div>
+                      <div style={{ fontWeight: 700 }}>{s.client || 'Deleted Lead'}</div>
                       <div className="mono" style={{ fontSize: '10px', color: 'var(--text3)' }}>LEAD: {s.leadId}</div>
                     </td>
                     <td style={{ fontSize: '13px' }}>{s.location}</td>

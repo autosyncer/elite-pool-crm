@@ -52,7 +52,10 @@ const FollowupPage = () => {
 
   const filtered = followups.filter(f => {
     const q = search.toLowerCase();
-    return f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q)) || String(f.leadId).toLowerCase().includes(q);
+    const name = f.name ? String(f.name).toLowerCase() : '';
+    const phone = f.phone ? String(f.phone).toLowerCase() : '';
+    const leadId = f.leadId ? String(f.leadId).toLowerCase() : '';
+    return name.includes(q) || phone.includes(q) || leadId.includes(q);
   });
 
   const getFollowup = (id, type) => followups.find(f => f.leadId === id && f.leadType === type);

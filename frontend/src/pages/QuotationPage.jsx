@@ -215,12 +215,16 @@ const QuotationPage = () => {
               {(() => {
                 const filteredQuotes = quotes.filter(q => {
                   const qLower = search.toLowerCase();
-                  return q.id.toLowerCase().includes(qLower) || q.client.toLowerCase().includes(qLower) || (q.size && q.size.toLowerCase().includes(qLower)) || (q.status && q.status.toLowerCase().includes(qLower));
+                  const qId = q.id ? String(q.id).toLowerCase() : '';
+                  const qClient = q.client ? String(q.client).toLowerCase() : '';
+                  const qSize = q.size ? String(q.size).toLowerCase() : '';
+                  const qStatus = q.status ? String(q.status).toLowerCase() : '';
+                  return qId.includes(qLower) || qClient.includes(qLower) || qSize.includes(qLower) || qStatus.includes(qLower);
                 });
                 return filteredQuotes.length > 0 ? filteredQuotes.map(q => (
                   <tr key={q.id}>
                     <td className="mono" style={{ color: 'var(--sky)', fontWeight: 700 }}>{q.id}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--text)' }}>{q.client}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text)' }}>{q.client || 'Deleted Lead'}</td>
                     <td style={{ fontSize: '13px' }}>{q.size}</td>
                     <td><StatusBadge status={q.status} /></td>
                     <td>

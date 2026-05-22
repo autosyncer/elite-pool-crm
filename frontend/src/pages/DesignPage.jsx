@@ -215,17 +215,21 @@ const DesignPage = () => {
               {(() => {
                 const filteredDesigns = designs.filter(d => d.leadType !== 'amc').filter(d => {
                   const q = search.toLowerCase();
-                  return d.leadId.toLowerCase().includes(q) || d.client.toLowerCase().includes(q) || (d.style && d.style.toLowerCase().includes(q)) || (d.designer && d.designer.toLowerCase().includes(q));
+                  const leadId = d.leadId ? String(d.leadId).toLowerCase() : '';
+                  const client = d.client ? String(d.client).toLowerCase() : '';
+                  const style = d.style ? String(d.style).toLowerCase() : '';
+                  const designer = d.designer ? String(d.designer).toLowerCase() : '';
+                  return leadId.includes(q) || client.includes(q) || style.includes(q) || designer.includes(q);
                 });
                 return filteredDesigns.length > 0 ? filteredDesigns.map(d => (
-                  <tr key={d.leadId}>
-                    <td className="mono" style={{ fontSize: '11px', color: 'var(--sky)' }}>{d.leadId}</td>
+                  <tr key={d.id || d.leadId}>
+                    <td className="mono" style={{ fontSize: '11px', color: 'var(--sky)' }}>{d.leadId || 'N/A'}</td>
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{d.client}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{d.client || 'Deleted Lead'}</div>
                       <div style={{ fontSize: '11px', color: 'var(--text3)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.req}</div>
                     </td>
-                    <td><span style={{ fontSize: '12px', background: 'var(--bg3)', padding: '2px 8px', borderRadius: '4px' }}>{d.style}</span></td>
-                    <td style={{ fontSize: '13px' }}>{d.designer}</td>
+                    <td><span style={{ fontSize: '12px', background: 'var(--bg3)', padding: '2px 8px', borderRadius: '4px' }}>{d.style || '−'}</span></td>
+                    <td style={{ fontSize: '13px' }}>{d.designer || '−'}</td>
                     <td><StatusBadge status={d.status === 'done' ? 'closed' : 'design'} /></td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
