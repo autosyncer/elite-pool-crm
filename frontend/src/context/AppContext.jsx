@@ -445,12 +445,19 @@ export const AppProvider = ({ children }) => {
       }));
       setNotifications(mapped);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      if (error?.response?.status === 401) {
+        // Token expired — clear auth and stop polling
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+      }
     }
   };
 
   useEffect(() => {
     const init = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return; // Don't run init if not authenticated
       const tasks = [
         refreshLeads, refreshDesigns, refreshQuotes, refreshAttendance,
         refreshOfficeExpenses, refreshSiteAccounts, refreshFollowups,
@@ -458,17 +465,19 @@ export const AppProvider = ({ children }) => {
         refreshNotifications
       ];
       for (const task of tasks) {
-        try { await task(); } catch (e) { console.error(`Failed task:`, e); }
+        try { await task(); } catch (e) { /* silent */ }
       }
     };
     init();
   }, []);
 
-  // Poll for notifications when user is active
+  // Poll notifications every 60s (only when authenticated)
   useEffect(() => {
     if (!user) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
     refreshNotifications();
-    const interval = setInterval(refreshNotifications, 10000); // 10 seconds polling
+    const interval = setInterval(refreshNotifications, 60000);
     return () => clearInterval(interval);
   }, [user]);
 

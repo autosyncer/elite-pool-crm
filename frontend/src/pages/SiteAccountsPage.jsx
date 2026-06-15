@@ -8,6 +8,13 @@ import InvoiceGeneratorPage from './InvoiceGeneratorPage';
 
 const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
+// Cloudinary raw URLs can't use <a download> cross-origin — open in new tab instead
+const openPdf = (fileUrl) => {
+  if (!fileUrl) return;
+  const url = fileUrl.replace('/image/upload/', '/raw/upload/');
+  window.open(url, '_blank', 'noreferrer');
+};
+
 function InvoiceLogModal({ open, siteName, uploaded, generated, onClose, onUpload, onDeleteUploaded, fmt }) {
   const defaultTab = uploaded.length === 0 && generated.length > 0 ? 'generated' : 'uploaded';
   const [tab, setTab] = useState(defaultTab);
@@ -74,14 +81,7 @@ function InvoiceLogModal({ open, siteName, uploaded, generated, onClose, onUploa
                       <td style={{ padding: '10px 14px', fontSize: '12px', color: '#64748b' }}>{inv.description || '—'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => {
-                            const rawUrl = (inv.file_url || '').replace('/image/upload/', '/raw/upload/');
-                            const fname = inv.description || inv.invoice_number || 'invoice';
-                            const name = fname.endsWith('.pdf') ? fname : `${fname}.pdf`;
-                            const a = document.createElement('a');
-                            a.href = rawUrl; a.target = '_blank'; a.rel = 'noreferrer'; a.download = name;
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                          }}>View / Download</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openPdf(inv.file_url)}>View / Download</button>
                           <button className="btn btn-ghost btn-sm" style={{ color: '#ef4444' }} onClick={() => onDeleteUploaded(inv.id)}>Delete</button>
                         </div>
                       </td>
