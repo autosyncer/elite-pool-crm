@@ -1,8 +1,22 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 axios.defaults.baseURL = API_BASE_URL;
+
+// Global 401 interceptor — runs before any component sees the error
+let _handle401 = null;
+axios.interceptors.response.use(
+  res => res,
+  err => {
+    if (err?.response?.status === 401) {
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+      if (_handle401) _handle401();
+    }
+    return Promise.reject(err);
+  }
+);
 
 const AppContext = createContext();
 
@@ -426,10 +440,28 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const notifIntervalRef = useRef(null);
+
+  const stopPolling = () => {
+    if (notifIntervalRef.current) {
+      clearInterval(notifIntervalRef.current);
+      notifIntervalRef.current = null;
+    }
+  };
+
+  // Register global 401 handler
+  useEffect(() => {
+    _handle401 = () => {
+      stopPolling();
+      setUser(null);
+    };
+    return () => { _handle401 = null; };
+  }, []);
+
   const refreshNotifications = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) { stopPolling(); return; }
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       const res = await axios.get('/notifications/');
       const mapped = res.data.map(n => ({
@@ -444,20 +476,18 @@ export const AppProvider = ({ children }) => {
         createdAt: n.created_at,
       }));
       setNotifications(mapped);
-    } catch (error) {
-      if (error?.response?.status === 401) {
-        // Token expired — clear auth and stop polling
-        localStorage.removeItem('token');
-        delete axios.defaults.headers.common['Authorization'];
-        setUser(null);
-      }
-    }
+    } catch (_) {}
+  };
+
+  const startPolling = () => {
+    stopPolling(); // clear any existing before starting
+    notifIntervalRef.current = setInterval(refreshNotifications, 60000);
   };
 
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem('token');
-      if (!token) return; // Don't run init if not authenticated
+      if (!token) return;
       const tasks = [
         refreshLeads, refreshDesigns, refreshQuotes, refreshAttendance,
         refreshOfficeExpenses, refreshSiteAccounts, refreshFollowups,
@@ -465,20 +495,19 @@ export const AppProvider = ({ children }) => {
         refreshNotifications
       ];
       for (const task of tasks) {
-        try { await task(); } catch (e) { /* silent */ }
+        try { await task(); } catch (_) {}
       }
     };
     init();
   }, []);
 
-  // Poll notifications every 60s (only when authenticated)
+  // Start/stop notification polling based on auth state
   useEffect(() => {
-    if (!user) return;
+    if (!user) { stopPolling(); return; }
     const token = localStorage.getItem('token');
     if (!token) return;
-    refreshNotifications();
-    const interval = setInterval(refreshNotifications, 60000);
-    return () => clearInterval(interval);
+    startPolling();
+    return () => stopPolling();
   }, [user]);
 
   const employees = (users || []).map(u => ({
