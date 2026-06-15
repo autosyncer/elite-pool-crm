@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Elite Pool Builders CRM — Overview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    margin: 0 auto;
+    padding: 14mm 16mm;
+    position: relative;
+  }
+
+  /* ── COVER PAGE ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 297mm;
+    background: linear-gradient(145deg, #0f2744 0%, #1a3c5e 50%, #1e5a8a 100%);
+    color: #fff;
+    text-align: center;
+    padding: 20mm;
+  }
+
+  .cover-logo {
+    width: 80px; height: 80px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+    margin-bottom: 28px;
+    border: 2px solid rgba(255,255,255,0.25);
+  }
+
+  .cover h1 {
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+
+  .cover h1 span { color: #60c4ff; }
+
+  .cover .sub {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 40px;
+    font-weight: 400;
+  }
+
+  .cover-divider {
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, #60c4ff, #a78bfa);
+    border-radius: 2px;
+    margin: 0 auto 40px;
+  }
+
+  .cover-tagline {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.9);
+    max-width: 340px;
+    line-height: 1.7;
+    margin-bottom: 60px;
+  }
+
+  .cover-meta {
+    display: flex; gap: 32px; justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .cover-stat {
+    text-align: center;
+  }
+
+  .cover-stat .num {
+    font-size: 28px; font-weight: 800; color: #60c4ff;
+    display: block;
+  }
+
+  .cover-stat .lbl {
+    font-size: 10px; color: rgba(255,255,255,0.55);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .cover-footer {
+    position: absolute; bottom: 14mm; left: 0; right: 0;
+    text-align: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* ── INNER PAGES ── */
+  .page-inner {
+    page-break-before: always;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #1a3c5e;
+    margin-bottom: 22px;
+  }
+
+  .page-header .brand {
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .page-header .brand-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: linear-gradient(135deg,#1a3c5e,#60c4ff);
+  }
+
+  .page-header .brand-name {
+    font-size: 11px; font-weight: 700; color: #1a3c5e;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+
+  .page-header .page-label {
+    font-size: 10px; color: #94a3b8; font-weight: 500;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f2744;
+    margin-bottom: 6px;
+  }
+
+  .section-subtitle {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 24px;
+    font-weight: 400;
+  }
+
+  /* ── PROBLEM CARDS ── */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .problem-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .problem-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: linear-gradient(180deg, #1a3c5e, #2d7dd2);
+    border-radius: 10px 0 0 10px;
+  }
+
+  .problem-card .card-icon {
+    font-size: 20px; margin-bottom: 8px;
+  }
+
+  .problem-card h3 {
+    font-size: 12px; font-weight: 700;
+    color: #1a3c5e; margin-bottom: 5px;
+  }
+
+  .problem-card .before {
+    font-size: 11px; color: #ef4444; margin-bottom: 6px;
+    display: flex; gap: 5px; align-items: flex-start;
+  }
+
+  .problem-card .after {
+    font-size: 11px; color: #16a34a;
+    display: flex; gap: 5px; align-items: flex-start;
+  }
+
+  .problem-card .before::before { content: '✗'; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .problem-card .after::before  { content: '✓'; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+
+  .compare-table th {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .compare-table th:first-child { background: #fee2e2; color: #b91c1c; text-align: left; }
+  .compare-table th:last-child  { background: #dcfce7; color: #15803d; text-align: left; }
+
+  .compare-table td {
+    padding: 9px 14px;
+    font-size: 11.5px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+  }
+
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:nth-child(even) td { background: #fafafa; }
+  .compare-table td:first-child { color: #dc2626; }
+  .compare-table td:last-child  { color: #15803d; font-weight: 500; }
+
+  /* ── FEATURE LIST ── */
+  .feature-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .feature-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 11px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .feature-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, #1a3c5e, #2d7dd2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+
+  .feature-item h4 {
+    font-size: 11.5px; font-weight: 700; color: #1e293b; margin-bottom: 2px;
+  }
+
+  .feature-item p {
+    font-size: 10.5px; color: #64748b; line-height: 1.5;
+  }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight-box {
+    background: linear-gradient(135deg, #0f2744 0%, #1a3c5e 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+
+  .highlight-box h3 {
+    font-size: 14px; font-weight: 800; margin-bottom: 10px;
+    color: #60c4ff;
+  }
+
+  .highlight-box p {
+    font-size: 11.5px; color: rgba(255,255,255,0.85); line-height: 1.7;
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .stat-box {
+    text-align: center;
+    padding: 16px 10px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+  }
+
+  .stat-box .num {
+    font-size: 26px; font-weight: 800; color: #1a3c5e;
+    display: block; line-height: 1;
+  }
+
+  .stat-box .unit { font-size: 13px; color: #94a3b8; }
+
+  .stat-box .lbl {
+    font-size: 10px; color: #64748b; margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+  }
+
+  /* ── MODULE SECTION ── */
+  .module-section {
+    margin-bottom: 18px;
+  }
+
+  .module-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid #e2e8f0;
+  }
+
+  .module-num {
+    width: 24px; height: 24px;
+    background: #1a3c5e; color: #fff;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .module-header h3 {
+    font-size: 13px; font-weight: 700; color: #1a3c5e;
+  }
+
+  .module-body {
+    padding-left: 34px;
+    font-size: 11.5px; color: #475569; line-height: 1.7;
+  }
+
+  .module-body .problem-line {
+    display: flex; gap: 6px; margin-top: 5px;
+    font-size: 11px; color: #15803d; font-weight: 500;
+  }
+
+  /* ── CLOSING PAGE ── */
+  .closing {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 297mm;
+    background: linear-gradient(145deg, #0f2744 0%, #1a3c5e 100%);
+    color: #fff;
+    text-align: center;
+    padding: 20mm;
+  }
+
+  .closing h2 {
+    font-size: 28px; font-weight: 900;
+    margin-bottom: 14px; line-height: 1.2;
+  }
+
+  .closing p {
+    font-size: 13px; color: rgba(255,255,255,0.75);
+    max-width: 360px; line-height: 1.8; margin-bottom: 40px;
+  }
+
+  .closing .pill {
+    display: inline-block;
+    padding: 8px 22px;
+    background: rgba(255,255,255,0.12);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #60c4ff;
+    margin: 4px;
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: #fff; }
+    .page, .cover, .closing { box-shadow: none; }
+    .page-inner { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+  }
+
+  @media screen {
+    .page, .cover, .closing {
+      box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+      margin: 16px auto;
+    }
+
+    body { padding: 20px 0; }
+  }
+
+  .print-btn {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1a3c5e; color: #fff;
+    border: none; border-radius: 50px;
+    padding: 13px 24px; font-size: 13px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    display: flex; align-items: center; gap: 8px;
+    font-family: inherit;
+    z-index: 999;
+  }
+
+  .print-btn:hover { background: #2d5a8a; }
+
+  @media print { .print-btn { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ COVER ══════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-logo">🏊</div>
+  <h1>Elite Pool Builders<br/><span>CRM System</span></h1>
+  <p class="sub">Business Management Platform</p>
+  <div class="cover-divider"></div>
+  <p class="cover-tagline">
+    One system to manage every lead, every project, every rupee, and every team member — from enquiry to invoice.
+  </p>
+  <div class="cover-meta">
+    <div class="cover-stat"><span class="num">26</span><span class="lbl">Features</span></div>
+    <div class="cover-stat"><span class="num">32</span><span class="lbl">Data Tables</span></div>
+    <div class="cover-stat"><span class="num">4</span><span class="lbl">User Roles</span></div>
+    <div class="cover-stat"><span class="num">100%</span><span class="lbl">Custom Built</span></div>
+  </div>
+  <div class="cover-footer">Elite Pool Builder · Hyderabad, Telangana · Confidential</div>
+</div>
+
+<!-- ══════════════════════════════════════════ PAGE 2 — THE PROBLEM ══════════════════════════════════════════ -->
+<div class="page page-inner">
+  <div class="page-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">Elite Pool Builders CRM</span></div>
+    <span class="page-label">The Problem</span>
+  </div>
+
+  <div class="section-title">Before This System Existed</div>
+  <p class="section-subtitle">Every growing pool business hits the same wall. The tools that worked at 10 clients collapse completely at 50.</p>
+
+  <div class="problem-grid">
+
+    <div class="problem-card no-break">
+      <div class="card-icon">📋</div>
+      <h3>Leads Were Getting Lost</h3>
+      <div class="before">Enquiries saved in personal phones and notebooks. Follow-ups forgotten when the team was busy on site.</div>
+      <div class="after">Every lead is saved instantly. The system sends reminders automatically. Nothing slips through.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">🏗️</div>
+      <h3>No Visibility Into Projects</h3>
+      <div class="before">Checking project status meant calling the supervisor. Payment status meant checking personal WhatsApp.</div>
+      <div class="after">Every project has a live page. Payments, progress, photos — all visible without calling anyone.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">💰</div>
+      <h3>Money Moving With No Record</h3>
+      <div class="before">Payments came via cash, UPI, and bank. Expenses paid from personal pocket. No idea if a project was profitable.</div>
+      <div class="after">Every rupee in and out is logged per project. Profit/loss of every site is visible in real time.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">🧾</div>
+      <h3>Invoices Were Untracked</h3>
+      <div class="before">Invoices made in Word/Excel, formatted differently each time, shared on WhatsApp, never stored properly.</div>
+      <div class="after">GST invoices generated in seconds, saved automatically, linked to the client account permanently.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">🔧</div>
+      <h3>AMC Contracts Neglected</h3>
+      <div class="before">AMC service visits were missed. Contracts were not renewed. Clients quietly switched to competitors.</div>
+      <div class="after">Service schedule tracked per client. Visit history maintained. Renewals never missed.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">📂</div>
+      <h3>Documents Impossible to Find</h3>
+      <div class="before">Designs, quotations, and invoices spread across 6 different phones in WhatsApp chats.</div>
+      <div class="after">Every document stored against the client. Anything found in under 10 seconds.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">👤</div>
+      <h3>No Staff Accountability</h3>
+      <div class="before">No record of who called whom, who visited which site, or who approved a purchase.</div>
+      <div class="after">Every action logged with a name and timestamp. Full audit trail always available.</div>
+    </div>
+
+    <div class="problem-card no-break">
+      <div class="card-icon">🧠</div>
+      <h3>Knowledge Walked Out the Door</h3>
+      <div class="before">When a team member left, their client contacts, project notes, and history left with them.</div>
+      <div class="after">All knowledge lives in the system, not in anyone's phone or memory.</div>
+    </div>
+
+  </div>
+
+  <div class="highlight-box">
+    <h3>The Core Problem</h3>
+    <p>A pool construction business is complex — multiple ongoing projects, AMC contracts, supplier relationships, staff coordination, and client communication all happening simultaneously. Managing all of this through WhatsApp, notebooks, and gut feel is not a strategy. It is a liability. Every missed follow-up, untracked payment, and lost document is money left on the table.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PAGE 3 — BEFORE vs AFTER ══════════════════════════════════════════ -->
+<div class="page page-inner">
+  <div class="page-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">Elite Pool Builders CRM</span></div>
+    <span class="page-label">Before vs After</span>
+  </div>
+
+  <div class="section-title">What Changed</div>
+  <p class="section-subtitle">A direct comparison of how the same business operates without and with this CRM.</p>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>❌ Before — Without CRM</th>
+        <th>✅ After — With This CRM</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Leads tracked in personal phones and WhatsApp</td>
+        <td>All leads centralised, assigned, and followed up automatically</td>
+      </tr>
+      <tr>
+        <td>Project status known only by calling the supervisor</td>
+        <td>Live project page anyone in the team can check from any device</td>
+      </tr>
+      <tr>
+        <td>No idea which project made money or lost money</td>
+        <td>Real-time profit/loss balance visible per project</td>
+      </tr>
+      <tr>
+        <td>Invoices made in Word, shared on WhatsApp, never stored</td>
+        <td>GST-compliant invoices generated and saved in seconds</td>
+      </tr>
+      <tr>
+        <td>AMC service visits missed, renewals forgotten</td>
+        <td>Full AMC schedule with service history and renewal tracking</td>
+      </tr>
+      <tr>
+        <td>Quotation sent and forgotten — no follow-up record</td>
+        <td>Every quotation logged with sent date, status, and follow-up</td>
+      </tr>
+      <tr>
+        <td>Documents lost across multiple phones</td>
+        <td>All documents stored against the client — findable in 10 seconds</td>
+      </tr>
+      <tr>
+        <td>No accountability for who did what</td>
+        <td>Every action logged with staff name and timestamp</td>
+      </tr>
+      <tr>
+        <td>Staff leave and take all knowledge with them</td>
+        <td>All knowledge in the system — no single person dependency</td>
+      </tr>
+      <tr>
+        <td>Owner needs 4 calls to understand business health</td>
+        <td>Single dashboard shows the complete business picture</td>
+      </tr>
+      <tr>
+        <td>Backup is a stack of notebooks and old Excel files</td>
+        <td>One-click backup and restore of the entire business database</td>
+      </tr>
+      <tr>
+        <td>Procurement tracked in a notebook, over-orders common</td>
+        <td>Material orders tracked per site — no duplicate purchasing</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <span class="num">0</span>
+      <span class="unit"> leads lost</span>
+      <div class="lbl">after implementation</div>
+    </div>
+    <div class="stat-box">
+      <span class="num">&lt;30</span>
+      <span class="unit">sec</span>
+      <div class="lbl">to see business status</div>
+    </div>
+    <div class="stat-box">
+      <span class="num">100%</span>
+      <div class="lbl">invoices logged & stored</div>
+    </div>
+    <div class="stat-box">
+      <span class="num">∞</span>
+      <div class="lbl">staff scalability</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PAGE 4 — FEATURES ══════════════════════════════════════════ -->
+<div class="page page-inner">
+  <div class="page-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">Elite Pool Builders CRM</span></div>
+    <span class="page-label">Features — Sales & Operations</span>
+  </div>
+
+  <div class="section-title">What the System Does</div>
+  <p class="section-subtitle">26 features built specifically for a pool construction and AMC business.</p>
+
+  <div class="feature-list">
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🔐</div>
+      <div>
+        <h4>Role-Based Access Control</h4>
+        <p>CEO, Admin, Partner, and Customer Support roles. Each person sees only what they need. Sensitive financial data stays protected.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📊</div>
+      <div>
+        <h4>Business Dashboard</h4>
+        <p>Live KPIs — active leads, revenue collected, follow-ups due, projects in progress. Complete business overview in one screen.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🏊</div>
+      <div>
+        <h4>Construction Leads</h4>
+        <p>Full pipeline for pool construction enquiries — track status from first call through to won or lost, with notes and history.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🔧</div>
+      <div>
+        <h4>AMC Leads</h4>
+        <p>Separate pipeline for Annual Maintenance Contract enquiries with AMC-specific fields and renewal tracking.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📌</div>
+      <div>
+        <h4>Kanban Pipeline</h4>
+        <p>Visual drag-and-drop board showing all leads across every stage simultaneously. Instantly see where deals are stuck.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🔔</div>
+      <div>
+        <h4>Follow-Up Tracker</h4>
+        <p>Scheduled reminders per lead with due dates and call notes. Dashboard badge shows overdue follow-ups so nothing is forgotten.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📞</div>
+      <div>
+        <h4>Call Tracker</h4>
+        <p>Log every call with outcome and notes. Filter by staff member. Full call history per client always available.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🎨</div>
+      <div>
+        <h4>Design Module</h4>
+        <p>Upload and store pool design files linked to specific clients. Version tracking. Professional client-ready view mode.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📄</div>
+      <div>
+        <h4>Quotation Module</h4>
+        <p>Generate and store itemised quotations per lead. Track sent, approved, and rejected status with full history.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📤</div>
+      <div>
+        <h4>Send to Client</h4>
+        <p>Professional document-sending workflow. Select files and share a clean link. Track what was sent to whom and when.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">⭐</div>
+      <div>
+        <h4>Reviews & Feedback</h4>
+        <p>Collect and store client reviews and site feedback with star ratings. All reviews in one place across all platforms.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">💬</div>
+      <div>
+        <h4>WhatsApp Greeting Generator</h4>
+        <p>Generate personalised festival and occasion greetings for bulk WhatsApp sending to all clients at once.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PAGE 5 — FEATURES (CONTINUED) ══════════════════════════════════════════ -->
+<div class="page page-inner">
+  <div class="page-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">Elite Pool Builders CRM</span></div>
+    <span class="page-label">Features — Finance & Operations</span>
+  </div>
+
+  <div class="feature-list">
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🏗️</div>
+      <div>
+        <h4>Construction Site Tracker</h4>
+        <p>Milestone progress, site photos, material delivery logs, supervisor visit logs. Full structured timeline per active project.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🏠</div>
+      <div>
+        <h4>AMC Site Tracker</h4>
+        <p>Schedule and log AMC visits — chemicals used, equipment serviced, issues found, next visit date. Complete service history per pool.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🛒</div>
+      <div>
+        <h4>Procurement Management</h4>
+        <p>Purchase orders, supplier tracking, item-wise procurement logs linked to specific sites. Know what is ordered, received, and pending.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🏭</div>
+      <div>
+        <h4>Vendor Directory</h4>
+        <p>Centralised supplier contacts with categories, payment terms, and notes. Never lose a vendor contact when a team member leaves.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📦</div>
+      <div>
+        <h4>Inventory Management</h4>
+        <p>Track stock levels, minimum thresholds, and usage per site. Eliminate duplicate purchasing and stock-outs.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">💼</div>
+      <div>
+        <h4>M2A Site Accounts</h4>
+        <p>Full project financial ledger for M2A sites — payments in, expenses out, running balance, category-wise expense tracking.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🏦</div>
+      <div>
+        <h4>Elite Pool Site Accounts</h4>
+        <p>Same financial ledger for EP projects — construction and AMC tracked separately per site with live profit/loss balance.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📈</div>
+      <div>
+        <h4>Account Detail View</h4>
+        <p>Deep-dive per site — full transaction log with running balance, uploaded invoices, and CRM-generated invoices all in one place.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🧾</div>
+      <div>
+        <h4>GST Invoice Generator</h4>
+        <p>A4-compliant tax invoices with dynamic line items, CGST/SGST/IGST toggle, amount in words. PDF download and direct print. Auto-logged and auto-deducted from site account.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">📁</div>
+      <div>
+        <h4>Invoice Management (Per Site)</h4>
+        <p>Upload external invoices (PDF/image) and view CRM-generated invoices per site. Individual download, bulk download, delete with full history.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🏢</div>
+      <div>
+        <h4>Office Expenses</h4>
+        <p>Track company-level costs — salaries, rent, utilities, petty cash. Category filters and monthly summaries.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">👥</div>
+      <div>
+        <h4>Staff & Attendance</h4>
+        <p>Manage user accounts and roles. Log daily attendance — present, absent, half day, leave. Monthly summaries per employee.</p>
+      </div>
+    </div>
+
+    <div class="feature-item no-break">
+      <div class="feature-icon">🔒</div>
+      <div>
+        <h4>Backup & Restore</h4>
+        <p>One-click export of the entire database as a JSON file. Upload to restore. Factory reset with confirmation. Full backup history log.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ PAGE 6 — CLOSING ══════════════════════════════════════════ -->
+<div class="page closing">
+  <div style="font-size:50px; margin-bottom:24px;">🏊</div>
+  <h2>Built for Elite Pool Builder.<br/>Built to Scale.</h2>
+  <p>
+    This is not a generic CRM adapted for a pool business. Every feature, every workflow, and every data structure was designed specifically around how Elite Pool Builder operates — from the first client call to the final GST invoice.
+  </p>
+
+  <div style="margin-bottom: 40px;">
+    <span class="pill">Lead Management</span>
+    <span class="pill">Project Tracking</span>
+    <span class="pill">Financial Ledgers</span>
+    <span class="pill">GST Invoicing</span>
+    <span class="pill">AMC Scheduling</span>
+    <span class="pill">Procurement</span>
+    <span class="pill">Staff Management</span>
+    <span class="pill">Backup & Restore</span>
+  </div>
+
+  <div style="border-top: 1px solid rgba(255,255,255,0.15); padding-top: 32px; width: 100%;">
+    <div style="font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Built For</div>
+    <div style="font-size: 18px; font-weight: 800; color: #60c4ff;">Elite Pool Builder</div>
+    <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px;">Hyderabad, Telangana · info@elitepoolbuilder.in</div>
+  </div>
+</div>
+
+<!-- Print Button -->
+<button class="print-btn" onclick="window.print()">
+  🖨 Save as PDF
+</button>
+
+</body>
+</html>

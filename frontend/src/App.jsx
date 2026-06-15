@@ -26,6 +26,12 @@ import OfficeExpensesPage from './pages/OfficeExpensesPage';
 import UsersPage from './pages/UsersPage';
 import AttendancePage from './pages/AttendancePage';
 import SendToClientPage from './pages/SendToClientPage';
+import AccountDetailPage from './pages/AccountDetailPage';
+import WhatsAppGreetingPage from './pages/WhatsAppGreetingPage';
+import VendorListPage from './pages/VendorListPage';
+import InventoryListPage from './pages/InventoryListPage';
+import BackupRestorePage from './pages/BackupRestorePage';
+import InvoiceGeneratorPage from './pages/InvoiceGeneratorPage';
 
 import './index.css';
 
@@ -64,11 +70,22 @@ const AppRoutes = () => {
       {/* Accounts */}
       <Route path="/accounts/m2a" element={<ProtectedRoute permission="m2aaccounts"><MainLayout><SiteAccountsPage company="m2a" /></MainLayout></ProtectedRoute>} />
       <Route path="/accounts/elitepool" element={<ProtectedRoute permission="elitepoolaccounts"><MainLayout><SiteAccountsPage company="elitePool" /></MainLayout></ProtectedRoute>} />
+      <Route path="/accounts/m2a/:siteName" element={<ProtectedRoute permission="m2aaccounts"><MainLayout><AccountDetailPage /></MainLayout></ProtectedRoute>} />
+      <Route path="/accounts/elitepool/:siteName" element={<ProtectedRoute permission="elitepoolaccounts"><MainLayout><AccountDetailPage /></MainLayout></ProtectedRoute>} />
       <Route path="/officeexpenses" element={<ProtectedRoute permission="officeexpenses"><MainLayout><OfficeExpensesPage /></MainLayout></ProtectedRoute>} />
+
+      {/* Overview */}
+      <Route path="/whatsapp-greeting" element={<MainLayout><WhatsAppGreetingPage /></MainLayout>} />
+
+      {/* Technical - Vendor & Inventory */}
+      <Route path="/vendors" element={<ProtectedRoute permission="procurements"><MainLayout><VendorListPage /></MainLayout></ProtectedRoute>} />
+      <Route path="/inventory" element={<ProtectedRoute permission="procurements"><MainLayout><InventoryListPage /></MainLayout></ProtectedRoute>} />
       
       {/* Admin */}
       <Route path="/users" element={<ProtectedRoute permission="users"><MainLayout><UsersPage /></MainLayout></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute permission="attendance"><MainLayout><AttendancePage /></MainLayout></ProtectedRoute>} />
+      <Route path="/backup" element={<ProtectedRoute permission="backup"><MainLayout><BackupRestorePage /></MainLayout></ProtectedRoute>} />
+      <Route path="/invoice-generator" element={<ProtectedRoute permission="officeexpenses"><MainLayout><InvoiceGeneratorPage /></MainLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

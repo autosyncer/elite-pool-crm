@@ -434,6 +434,154 @@ class ProcurementModel(Base):
     created_at       = Column(DateTime,    server_default=func.now())
 
 
+# --- SALARY HISTORY MODEL ---
+
+class SalaryHistoryModel(Base):
+    __tablename__ = "salary_history"
+    id           = Column(Integer, primary_key=True, index=True)
+    employee_name = Column(String(150), nullable=False)
+    employee_id  = Column(String(20),  nullable=True)
+    designation  = Column(String(100), nullable=True)
+    month        = Column(String(20),  nullable=False)
+    year         = Column(String(10),  nullable=False)
+    gross_wages  = Column(Numeric(12, 2), default=0)
+    paid_days    = Column(Integer,     default=0)
+    total_days   = Column(Integer,     default=31)
+    lop_days     = Column(Integer,     default=0)
+    basic        = Column(Numeric(12, 2), default=0)
+    hra          = Column(Numeric(12, 2), default=0)
+    conveyance   = Column(Numeric(12, 2), default=0)
+    medical      = Column(Numeric(12, 2), default=0)
+    other        = Column(Numeric(12, 2), default=0)
+    total_earnings = Column(Numeric(12, 2), default=0)
+    salary_advance = Column(Numeric(12, 2), default=0)
+    balance_deduction = Column(Numeric(12, 2), default=0)
+    professional_tax  = Column(Numeric(12, 2), default=0)
+    total_deductions  = Column(Numeric(12, 2), default=0)
+    net_salary   = Column(Numeric(12, 2), default=0)
+    note         = Column(Text,        nullable=True)
+    created_at   = Column(DateTime,    server_default=func.now())
+
+
+# --- STAFF PROFILE MODEL ---
+
+class StaffProfileModel(Base):
+    __tablename__ = "staff_profiles"
+    id           = Column(Integer, primary_key=True, index=True)
+    name         = Column(String(150), nullable=False)
+    employee_id  = Column(String(20),  nullable=True)
+    designation  = Column(String(100), nullable=True)
+    account_no   = Column(String(50),  nullable=True)
+    bank_name    = Column(String(100), nullable=True)
+    doj          = Column(String(20),  nullable=True)   # date of joining as string e.g. 05-07-2024
+    phone        = Column(String(20),  nullable=True)
+    created_at   = Column(DateTime,    server_default=func.now())
+    updated_at   = Column(DateTime,    server_default=func.now(), onupdate=func.now())
+
+
+# --- VENDOR & INVENTORY MODULE MODELS ---
+
+class VendorCategoryEnum(str, enum.Enum):
+    materials   = "materials"
+    equipment   = "equipment"
+    labour      = "labour"
+    transport   = "transport"
+    other       = "other"
+
+class VendorModel(Base):
+    __tablename__ = "vendors"
+    id             = Column(Integer, primary_key=True, index=True)
+    name           = Column(String(150), nullable=False)
+    category       = Column(SAEnum(VendorCategoryEnum, name="vendor_category"), nullable=False)
+    contact_person = Column(String(100), nullable=True)
+    phone          = Column(String(20),  nullable=True)
+    email          = Column(String(150), nullable=True)
+    address        = Column(Text,        nullable=True)
+    rating         = Column(Integer,     default=0)
+    notes          = Column(Text,        nullable=True)
+    created_at     = Column(DateTime,    server_default=func.now())
+
+    inventory_items = relationship("InventoryModel", back_populates="vendor")
+
+
+class InventoryModel(Base):
+    __tablename__ = "inventory"
+    id           = Column(Integer, primary_key=True, index=True)
+    item_name    = Column(String(150), nullable=False)
+    category     = Column(String(100), nullable=True)
+    quantity     = Column(Numeric(10, 2), default=0)
+    unit         = Column(String(30),  nullable=True)
+    min_quantity = Column(Numeric(10, 2), default=0)
+    vendor_id    = Column(Integer, ForeignKey('vendors.id', ondelete='SET NULL'), nullable=True)
+    notes        = Column(Text,    nullable=True)
+    created_at   = Column(DateTime, server_default=func.now())
+    updated_at   = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    vendor = relationship("VendorModel", back_populates="inventory_items")
+
+
+# --- EP INVOICE MODEL ---
+
+class EPInvoiceModel(Base):
+    __tablename__ = "ep_invoices"
+    id             = Column(Integer, primary_key=True, index=True)
+    account_id     = Column(Integer, ForeignKey('ep_accounts.id', ondelete='CASCADE'), nullable=False)
+    invoice_number = Column(String(100), nullable=True)
+    file_url       = Column(Text,        nullable=False)
+    public_id      = Column(String(255), nullable=True)
+    amount         = Column(Numeric(12, 2), nullable=True)
+    invoice_date   = Column(Date,        server_default=func.now())
+    description    = Column(Text,        nullable=True)
+    created_at     = Column(DateTime,    server_default=func.now())
+
+    account = relationship("ElitePoolAccounts")
+
+
+# --- INVOICE MODEL ---
+
+class InvoiceModel(Base):
+    __tablename__ = "invoices"
+    id               = Column(Integer,     primary_key=True, index=True)
+    invoice_no       = Column(String(100), nullable=False, unique=True, index=True)
+    invoice_date     = Column(Date,        server_default=func.now())
+    due_date         = Column(String(50),  nullable=True)
+    gr_no            = Column(String(100), nullable=True)
+    order_no         = Column(String(100), nullable=True)
+    project          = Column(String(255), nullable=True)
+    state            = Column(String(100), nullable=True, default="Telangana")
+    state_code       = Column(String(10),  nullable=True, default="36")
+    bill_to_name     = Column(String(255), nullable=False)
+    bill_to_address  = Column(Text,        nullable=True)
+    bill_to_gstin    = Column(String(20),  nullable=True)
+    ship_to_name     = Column(String(255), nullable=True)
+    ship_to_address  = Column(Text,        nullable=True)
+    ship_to_gstin    = Column(String(20),  nullable=True)
+    items_json       = Column(Text,        nullable=False)   # JSON array of line items
+    gst_rate         = Column(Numeric(5,2),default=9)        # per slab e.g. 9 for 9%+9%
+    sub_total        = Column(Numeric(12,2),default=0)
+    cgst             = Column(Numeric(12,2),default=0)
+    sgst             = Column(Numeric(12,2),default=0)
+    igst             = Column(Numeric(12,2),default=0)
+    round_off        = Column(Numeric(6,2), default=0)
+    total            = Column(Numeric(12,2),default=0)
+    notes            = Column(Text,         nullable=True)
+    created_by       = Column(String(150),  nullable=True)
+    billed_by        = Column(String(50),   nullable=True)   # 'CEO' or 'Admin'
+    created_at       = Column(DateTime,     server_default=func.now())
+
+
+# --- BACKUP LOG MODEL ---
+
+class BackupLogModel(Base):
+    __tablename__ = "backup_logs"
+    id               = Column(Integer,     primary_key=True, index=True)
+    backup_name      = Column(String(255), nullable=False)
+    backup_size      = Column(String(50),  nullable=True)
+    tables_included  = Column(Text,        nullable=True)
+    backup_type      = Column(String(20),  default="manual")   # manual | auto
+    status           = Column(String(20),  default="success")  # success | failed
+    created_at       = Column(DateTime,    server_default=func.now())
+
 
 class NotificationType(str, enum.Enum):
     create = "create"

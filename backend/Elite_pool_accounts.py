@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from database import get_db
-from models import ElitePoolAccounts, ElitePoolProjectType, ElitePoolPayments, ElitePoolExpenses, ElitePoolExpenseType, ConstructionLeadModel, AMCLeadModel
+from models import ElitePoolAccounts, ElitePoolProjectType, ElitePoolPayments, ElitePoolExpenses, ElitePoolExpenseType, ConstructionLeadModel, AMCLeadModel, EPInvoiceModel
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.sql import func, text, or_
+from decimal import Decimal
+import cloudinary.uploader
 
 router = APIRouter(prefix="/elite-pool-accounts", tags=["elite_pool_accounts"])
 
@@ -325,3 +327,142 @@ async def delete_ep_account(identifier: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- INVOICE ENDPOINTS ---
+
+@router.post("/upload-invoice/{site_name}")
+async def upload_invoice(
+    site_name: str,
+    file: UploadFile = File(...),
+    invoice_number: Optional[str] = Form(None),
+    amount: Optional[float] = Form(None),
+    invoice_date: Optional[date] = Form(None),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    account = db.query(ElitePoolAccounts).filter(ElitePoolAccounts.site_name == site_name).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    contents = await file.read()
+    safe_site = "".join(c if c.isalnum() else "_" for c in site_name)
+    original_name = file.filename or "invoice.pdf"
+    upload_result = cloudinary.uploader.upload(
+        contents,
+        folder=f"ep_invoices/{safe_site}",
+        resource_type="raw",
+        use_filename=True,
+        unique_filename=True,
+        overwrite=False,
+    )
+
+    pay_date = invoice_date or date.today()
+    file_url = upload_result["secure_url"]
+    # Ensure URL uses /raw/upload/ for correct PDF delivery
+    file_url = file_url.replace("/image/upload/", "/raw/upload/")
+    invoice = EPInvoiceModel(
+        account_id=account.id,
+        invoice_number=invoice_number,
+        file_url=file_url,
+        public_id=upload_result["public_id"],
+        amount=amount,
+        invoice_date=pay_date,
+        description=description or original_name,
+    )
+    db.add(invoice)
+
+    # Deduct uploaded invoice amount from site account balance as an expense
+    if amount and float(amount) > 0:
+        desc = f"Invoice#{invoice_number or 'upload'} | PDF Upload"[:255]
+        expense = ElitePoolExpenses(
+            account_id=account.id,
+            amount=Decimal(str(amount)),
+            expenses_type=ElitePoolExpenseType.miscellaneous,
+            payment_date=pay_date,
+            description=desc,
+            note=None,
+        )
+        db.add(expense)
+
+    db.commit()
+    db.refresh(invoice)
+    return {"id": invoice.id, "message": "Invoice uploaded", "file_url": invoice.file_url}
+
+
+@router.get("/invoices/{site_name}")
+async def get_invoices(site_name: str, db: Session = Depends(get_db)):
+    account = db.query(ElitePoolAccounts).filter(ElitePoolAccounts.site_name == site_name).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    invoices = db.query(EPInvoiceModel).filter(EPInvoiceModel.account_id == account.id).order_by(EPInvoiceModel.invoice_date.desc()).all()
+    return [
+        {
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "file_url": inv.file_url,
+            "amount": float(inv.amount) if inv.amount else None,
+            "invoice_date": str(inv.invoice_date) if inv.invoice_date else None,
+            "description": inv.description,
+            "created_at": str(inv.created_at)[:10] if inv.created_at else None,
+        }
+        for inv in invoices
+    ]
+
+
+@router.delete("/invoice/{invoice_id}")
+async def delete_invoice(invoice_id: int, db: Session = Depends(get_db)):
+    invoice = db.query(EPInvoiceModel).filter(EPInvoiceModel.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.public_id:
+        try:
+            cloudinary.uploader.destroy(invoice.public_id, resource_type="raw")
+        except Exception:
+            pass
+    # Also remove the linked expense entry so balance is restored
+    if invoice.amount and float(invoice.amount) > 0:
+        inv_num = invoice.invoice_number or "upload"
+        linked = db.query(ElitePoolExpenses).filter(
+            ElitePoolExpenses.account_id == invoice.account_id,
+            ElitePoolExpenses.description.like(f"Invoice#{inv_num}%")
+        ).first()
+        if linked:
+            db.delete(linked)
+    db.delete(invoice)
+    db.commit()
+    return {"message": "Invoice deleted"}
+
+
+def _sync_invoice_expenses(db: Session):
+    """Retroactively create expense records for uploaded invoices that are missing one."""
+    invoices = db.query(EPInvoiceModel).all()
+    created = 0
+    for inv in invoices:
+        if not inv.amount or float(inv.amount) <= 0:
+            continue
+        inv_num = inv.invoice_number or "upload"
+        existing = db.query(ElitePoolExpenses).filter(
+            ElitePoolExpenses.account_id == inv.account_id,
+            ElitePoolExpenses.description.like(f"Invoice#{inv_num}%")
+        ).first()
+        if existing:
+            continue
+        expense = ElitePoolExpenses(
+            account_id=inv.account_id,
+            amount=Decimal(str(inv.amount)),
+            expenses_type=ElitePoolExpenseType.miscellaneous,
+            payment_date=inv.invoice_date or date.today(),
+            description=f"Invoice#{inv_num} | PDF Upload"[:255],
+            note=None,
+        )
+        db.add(expense)
+        created += 1
+    db.commit()
+    return {"message": f"Synced {created} missing expense(s)"}
+
+
+@router.post("/sync-invoice-expenses")
+async def sync_invoice_expenses(db: Session = Depends(get_db)):
+    return _sync_invoice_expenses(db)

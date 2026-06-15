@@ -197,7 +197,7 @@ export const AppProvider = ({ children }) => {
         note: e.note,
         payee: e.payee_name
       }));
-      
+
       const rent = data.filter(e => e.category === "Office Rent / Utilities").map(e => ({
         id: e.id,
         date: e.expense_date,
@@ -488,9 +488,9 @@ export const AppProvider = ({ children }) => {
   };
 
   const PERMS = {
-    ceo: ['ceo', 'admin', 'dashboard', 'leads', 'pipeline', 'addlead', 'design', 'quotation', 'send', 'followup', 'calltracker', 'feedback', 'construction', 'amc', 'procurements', 'm2aaccounts', 'elitepoolaccounts', 'officeexpenses', 'users', 'attendance'],
-    admin: ['admin', 'dashboard', 'leads', 'pipeline', 'addlead', 'design', 'quotation', 'send', 'followup', 'calltracker', 'feedback', 'construction', 'amc', 'procurements'],
-    partner: ['dashboard', 'leads', 'pipeline', 'addlead', 'design', 'quotation', 'send', 'followup', 'calltracker', 'feedback', 'construction', 'amc', 'procurements', 'm2aaccounts'],
+    ceo: ['ceo', 'admin', 'dashboard', 'leads', 'pipeline', 'addlead', 'design', 'quotation', 'send', 'followup', 'calltracker', 'feedback', 'construction', 'amc', 'procurements', 'vendors', 'inventory', 'm2aaccounts', 'elitepoolaccounts', 'officeexpenses', 'users', 'attendance', 'backup'],
+    admin: ['admin', 'dashboard', 'leads', 'pipeline', 'addlead', 'design', 'quotation', 'send', 'followup', 'calltracker', 'feedback', 'construction', 'amc', 'procurements', 'vendors', 'inventory', 'backup'],
+    partner: ['dashboard', 'leads', 'pipeline', 'addlead', 'design', 'quotation', 'send', 'followup', 'calltracker', 'feedback', 'construction', 'amc', 'procurements', 'vendors', 'inventory', 'm2aaccounts'],
     customer_support: ['dashboard', 'leads', 'pipeline', 'addlead', 'followup', 'calltracker', 'feedback']
   };
 

@@ -23,9 +23,31 @@ from pipeline import router as pipeline_router
 from notifications import router as notifications_router
 from users import router as users_router
 from Add_leads import router as add_leads_router
+from backup import router as backup_router
+from invoice_generator import router as invoice_router
+from vendor import router as vendor_router
+from inventory import router as inventory_router
+from staff_profile import router as staff_profile_router
+from salary_history import router as salary_history_router
 
 
-app = FastAPI(title="Elite Pool Builders CRM API")
+from contextlib import asynccontextmanager
+from database import get_db
+
+@asynccontextmanager
+async def lifespan(app):
+    # Retroactively sync missing expense records for uploaded invoices
+    try:
+        from Elite_pool_accounts import _sync_invoice_expenses
+        db = next(get_db())
+        result = _sync_invoice_expenses(db)
+        print(f"[startup] invoice-expense sync: {result}")
+        db.close()
+    except Exception as e:
+        print(f"[startup] invoice-expense sync failed: {e}")
+    yield
+
+app = FastAPI(title="Elite Pool Builders CRM API", lifespan=lifespan)
 
 import os
 
@@ -59,6 +81,12 @@ app.include_router(procurement_router)
 app.include_router(pipeline_router)
 app.include_router(notifications_router)
 app.include_router(users_router)
+app.include_router(backup_router)
+app.include_router(invoice_router)
+app.include_router(vendor_router)
+app.include_router(inventory_router)
+app.include_router(staff_profile_router)
+app.include_router(salary_history_router)
 
 
 @app.get("/api")
