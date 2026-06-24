@@ -125,9 +125,9 @@ async def adding_leads_from_construction(
 @router.post("/adding_leads_from_amc/{identifier}")
 async def adding_leads_from_amc(
     identifier: str,
-    location: str = Form(...),         
-    initial_advance_payment: float = Form(...),
-    payment_date: date = Form(...),
+    location: Optional[str] = Form(None),
+    initial_advance_payment: float = Form(0),
+    payment_date: Optional[date] = Form(None),
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
@@ -157,7 +157,8 @@ async def adding_leads_from_amc(
         db.refresh(new_accout)
 
         if initial_advance_payment > 0:
-            db.add(ElitePoolPayments(account_id=new_accout.id, amount=initial_advance_payment, payment_date=payment_date))
+            from datetime import date as _d
+            db.add(ElitePoolPayments(account_id=new_accout.id, amount=initial_advance_payment, payment_date=payment_date or _d.today()))
             db.commit()
 
         return {"message": f"Account created for {lead.name}"}
@@ -189,8 +190,8 @@ async def get_all_ep_accounts(db: Session = Depends(get_db)):
             "created_at": str(acc.created_at),
             "received": float(total_payment),
             "spent": float(total_expense),
-            "payments": [{"amount": float(p.amount), "payment_date": str(p.payment_date)} for p in payments],
-            "expenses": [{"amount": float(e.amount), "payment_date": str(e.payment_date), "description": e.description, "expenses_type": e.expenses_type} for e in expenses]
+            "payments": [{"id": p.id, "amount": float(p.amount), "payment_date": str(p.payment_date)} for p in payments],
+            "expenses": [{"id": e.id, "amount": float(e.amount), "payment_date": str(e.payment_date), "description": e.description, "expenses_type": e.expenses_type} for e in expenses]
         })
     return result
 
@@ -218,11 +219,12 @@ async def get_account_details(identifier: str, db: Session = Depends(get_db)):
                 "last_update": str(account.last_update)
             },
             "payments": [
-                {"amount": float(p.amount), "payment_date": str(p.payment_date)}
+                {"id": p.id, "amount": float(p.amount), "payment_date": str(p.payment_date)}
                 for p in payments
             ],
             "expenses": [
                 {
+                    "id": e.id,
                     "amount": float(e.amount),
                     "payment_date": str(e.payment_date),
                     "description": e.description,
@@ -235,13 +237,67 @@ async def get_account_details(identifier: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.put("/edit_payment/{payment_id}")
+async def edit_payment(
+    payment_id: int,
+    amount: float = Form(...),
+    payment_date: date = Form(...),
+    db: Session = Depends(get_db)
+):
+    p = db.query(ElitePoolPayments).filter(ElitePoolPayments.id == payment_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    p.amount = amount
+    p.payment_date = payment_date
+    db.commit()
+    return {"message": "Payment updated"}
+
+
+@router.put("/edit_expense/{expense_id}")
+async def edit_expense(
+    expense_id: int,
+    amount: float = Form(...),
+    payment_date: date = Form(...),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    e = db.query(ElitePoolExpenses).filter(ElitePoolExpenses.id == expense_id).first()
+    if not e:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    e.amount = amount
+    e.payment_date = payment_date
+    if description is not None:
+        e.description = description
+    db.commit()
+    return {"message": "Expense updated"}
+
+
+@router.delete("/delete_payment/{payment_id}")
+async def delete_payment(payment_id: int, db: Session = Depends(get_db)):
+    p = db.query(ElitePoolPayments).filter(ElitePoolPayments.id == payment_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    db.delete(p)
+    db.commit()
+    return {"message": "Payment deleted"}
+
+
+@router.delete("/delete_expense/{expense_id}")
+async def delete_expense(expense_id: int, db: Session = Depends(get_db)):
+    e = db.query(ElitePoolExpenses).filter(ElitePoolExpenses.id == expense_id).first()
+    if not e:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    db.delete(e)
+    db.commit()
+    return {"message": "Expense deleted"}
 
 
 @router.put("/add_payment/{identifier}")
 async def add_payment(
     identifier: str, # Can be ID or Site Name
-    amount: float = Form(...), 
+    amount: float = Form(...),
     payment_date: date = Form(...),
+    pay_mode: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     try:
@@ -257,7 +313,8 @@ async def add_payment(
         new_payment = ElitePoolPayments(
             account_id=account.id,
             amount=amount,
-            payment_date=payment_date
+            payment_date=payment_date,
+            pay_mode=pay_mode
         )
         db.add(new_payment)
         account.last_update = func.now() 
@@ -273,17 +330,18 @@ async def add_payment(
 
 @router.put("/add_expenses/{identifier}")
 async def add_expenses(
-    identifier: str, # Can be ID or Site Name
-    amount: float = Form(...), 
+    identifier: str,
+    amount: float = Form(...),
     expense_type: ElitePoolExpenseType = Form(...),
     expense_date: date = Form(...),
     description: str = Form(...),
     note: Optional[str] = Form(None),
+    pay_mode: Optional[str] = Form(None),
+    paid_to: Optional[str] = Form(None),
+    purchased_from: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     try:
-        
-        # Search by ID (if identifier is a number) OR Site Name
         query = db.query(ElitePoolAccounts)
         if identifier.isdigit():
             account = query.filter(or_(ElitePoolAccounts.id == int(identifier), ElitePoolAccounts.site_name == identifier)).first()
@@ -292,14 +350,17 @@ async def add_expenses(
 
         if not account:
             raise HTTPException(status_code=404, detail="Account not found")
-        
+
         new_expense = ElitePoolExpenses(
             account_id=account.id,
             amount=amount,
-            expenses_type=expense_type, 
-            payment_date=expense_date,  
+            expenses_type=expense_type,
+            payment_date=expense_date,
             description=description,
-            note=note
+            note=note,
+            pay_mode=pay_mode,
+            paid_to=paid_to,
+            purchased_from=purchased_from,
         )
         db.add(new_expense)
         account.last_update = func.now() 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAppContext, API_BASE_URL } from '../context/AppContext';
@@ -7,9 +7,23 @@ const AddLeadPage = () => {
   const navigate = useNavigate();
   const { checkAccess, refreshLeads, addNotification, toast } = useAppContext();
   const [formData, setFormData] = useState({
-    name: '', phone: '', loc: '', src: 'Meta Ad', lt: 'construction', req: '', 
-    projectFeatures: [], pri: 'Normal', notes: ''
+    name: '', phone: '', loc: '', src: 'Meta Ad', lt: 'construction', req: '',
+    projectFeatures: [], pri: 'Normal', notes: '', lead_code: ''
   });
+
+  const fetchNextCode = useCallback(async (lt) => {
+    try {
+      const { data } = await axios.get(`/add-leads/next-code/${lt}`);
+      setFormData(prev => ({ ...prev, lead_code: data.lead_code }));
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchNextCode('construction'); }, [fetchNextCode]);
+
+  const handleLtChange = (lt) => {
+    setFormData(prev => ({ ...prev, lt }));
+    fetchNextCode(lt);
+  };
 
   if (!checkAccess('addlead')) return <Navigate to="/dashboard" />;
 
@@ -48,9 +62,10 @@ const AddLeadPage = () => {
         src: formData.src,
         lt: formData.lt,
         req: formData.req,
-        budget: formData.projectFeatures, // Mapping features to budget list in backend
+        budget: formData.projectFeatures,
         pri: formData.pri,
-        notes: formData.notes
+        notes: formData.notes,
+        lead_code: formData.lead_code,
       };
 
       await axios.post('/add-leads/create', payload);
@@ -73,7 +88,7 @@ const AddLeadPage = () => {
   };
 
 
-  const FEATURE_OPTIONS = ["End-to-End", "MEP", "With Kids Pool"];
+  const FEATURE_OPTIONS = ["With Chemical", "Without Chemical", "With Life Guard", "Without Life Guard"];
 
   const toggleFeature = (feature) => {
     setFormData(prev => ({
@@ -105,9 +120,15 @@ const AddLeadPage = () => {
               </select>
             </div>
             <div className="fg"><label className="fl">Lead Type</label>
-              <select className="fs" value={formData.lt} onChange={e => setFormData({...formData, lt: e.target.value})}>
+              <select className="fs" value={formData.lt} onChange={e => handleLtChange(e.target.value)}>
                 <option value="construction">Pool Construction</option><option value="amc">AMC / Maintenance</option>
               </select>
+            </div>
+            <div className="fg"><label className="fl">Lead ID</label>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input className="fi" placeholder="EPB-C-001" value={formData.lead_code} onChange={e => setFormData({...formData, lead_code: e.target.value})} style={{ flex: 1 }} />
+                <button type="button" onClick={() => fetchNextCode(formData.lt)} title="Auto-generate" style={{ padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}>Auto</button>
+              </div>
             </div>
             <div className="fg"><label className="fl">Priority</label>
               <select className="fs" value={formData.pri} onChange={e => setFormData({...formData, pri: e.target.value})}>

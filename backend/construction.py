@@ -45,7 +45,8 @@ async def get_all_sites(db: Session = Depends(get_db)):
                     "leadId": getattr(lead, 'lead_code', 'N/A') if lead else "N/A",
                     "startDate": str(s.start_date) if s.start_date else "N/A",
                     "status": s.status if s.status else "active",
-                    "plans": {p.plan_type: {"url": p.file_url, "id": p.id, "name": p.file_name} for p in plans} if plans else {}
+                    "plans": {p.plan_type: {"url": p.file_url, "id": p.id, "name": p.file_name} for p in plans if p.plan_type != 'other'} if plans else {},
+                    "otherPlans": [{"url": p.file_url, "id": p.id, "name": p.file_name} for p in plans if p.plan_type == 'other'] if plans else []
                 })
             except Exception as e:
                 print(f"Error processing site {s.id}: {e}")
@@ -59,7 +60,8 @@ async def get_all_sites(db: Session = Depends(get_db)):
                     "leadId": "N/A",
                     "startDate": "N/A",
                     "status": "active",
-                    "plans": {}
+                    "plans": {},
+                    "otherPlans": []
                 })
         return results
     except Exception as e:

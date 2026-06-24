@@ -207,22 +207,31 @@ class ElitePoolAccounts(Base):
     last_update = Column(DateTime, server_default=func.now())
     created_at  = Column(DateTime, server_default=func.now())
 
+class PayMode(str, enum.Enum):
+    cash        = "cash"
+    upi         = "upi"
+    net_banking = "net_banking"
+
 class ElitePoolPayments(Base):
     __tablename__ = "ep_payments"
     id          = Column(Integer, primary_key=True, index=True)
     account_id  = Column(Integer, ForeignKey('ep_accounts.id'), nullable=False)
     amount      = Column(Numeric(15,2), nullable=False)
     payment_date= Column(Date, nullable=False)
+    pay_mode    = Column(SAEnum(PayMode, name="pay_mode_enum"), nullable=True)
 
 class ElitePoolExpenses(Base):
     __tablename__ = "ep_expenditures"
-    id           = Column(Integer, primary_key=True, index=True)
-    account_id   = Column(Integer, ForeignKey('ep_accounts.id'), nullable=False)
-    amount       = Column(Numeric(15,2), nullable=False)
-    payment_date = Column(Date, nullable=False)
-    expenses_type= Column(SAEnum(ElitePoolExpenseType, name="ep_expense_type"), nullable=False)
-    description  = Column(String(255), nullable=True)
-    note         = Column(Text, nullable=True)
+    id              = Column(Integer, primary_key=True, index=True)
+    account_id      = Column(Integer, ForeignKey('ep_accounts.id'), nullable=False)
+    amount          = Column(Numeric(15,2), nullable=False)
+    payment_date    = Column(Date, nullable=False)
+    expenses_type   = Column(SAEnum(ElitePoolExpenseType, name="ep_expense_type"), nullable=False)
+    description     = Column(String(255), nullable=True)
+    note            = Column(Text, nullable=True)
+    pay_mode        = Column(SAEnum(PayMode, name="pay_mode_enum"), nullable=True)
+    paid_to         = Column(String(255), nullable=True)
+    purchased_from  = Column(String(255), nullable=True)
 
 
 class OfficeExpenseCategory(str, enum.Enum):
@@ -328,6 +337,7 @@ class ConstructionPlanType(str, enum.Enum):
     sectional = 'sectional'
     pumpRoom  = 'pumpRoom'
     cad       = 'cad'
+    other     = 'other'
 
 class ConstructionPlan(Base):
     __tablename__ = "construction_plans"
@@ -473,8 +483,10 @@ class StaffProfileModel(Base):
     designation  = Column(String(100), nullable=True)
     account_no   = Column(String(50),  nullable=True)
     bank_name    = Column(String(100), nullable=True)
-    doj          = Column(String(20),  nullable=True)   # date of joining as string e.g. 05-07-2024
+    doj          = Column(String(20),  nullable=True)
     phone        = Column(String(20),  nullable=True)
+    photo_url    = Column(Text,        nullable=True)
+    aadhar_url   = Column(Text,        nullable=True)
     created_at   = Column(DateTime,    server_default=func.now())
     updated_at   = Column(DateTime,    server_default=func.now(), onupdate=func.now())
 
@@ -482,17 +494,24 @@ class StaffProfileModel(Base):
 # --- VENDOR & INVENTORY MODULE MODELS ---
 
 class VendorCategoryEnum(str, enum.Enum):
-    materials   = "materials"
-    equipment   = "equipment"
-    labour      = "labour"
-    transport   = "transport"
-    other       = "other"
+    materials     = "materials"
+    equipment     = "equipment"
+    labour        = "labour"
+    transport     = "transport"
+    plumbing      = "plumbing"
+    civil         = "civil"
+    chemical      = "chemical"
+    electrical    = "electrical"
+    mechanical    = "mechanical"
+    water_proofing = "water_proofing"
+    other         = "other"
 
 class VendorModel(Base):
     __tablename__ = "vendors"
     id             = Column(Integer, primary_key=True, index=True)
     name           = Column(String(150), nullable=False)
-    category       = Column(SAEnum(VendorCategoryEnum, name="vendor_category"), nullable=False)
+    category       = Column(SAEnum(VendorCategoryEnum, name="vendor_category", create_type=False), nullable=False)
+    gst_number     = Column(String(20),  nullable=True)
     contact_person = Column(String(100), nullable=True)
     phone          = Column(String(20),  nullable=True)
     email          = Column(String(150), nullable=True)

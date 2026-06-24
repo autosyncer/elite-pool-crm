@@ -86,9 +86,16 @@ async def add_attendence(
         notes: Optional[str] = Form(None),
         db: Session = Depends(get_db)):
     
+    existing = db.query(AttendenceModel).filter(
+        AttendenceModel.employee_id == employee_id,
+        AttendenceModel.date == date
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Attendance already marked for this employee on the selected date")
+
     parsed_check_in = parse_time_string(check_in)
     parsed_check_out = parse_time_string(check_out)
-    
+
     new_attendence = AttendenceModel(
         employee_id=employee_id,
         date=date,
@@ -139,17 +146,17 @@ async def get_attendence(employee_id: int, db: Session = Depends(get_db)):
         "notes": a.notes,
     } for a in attendence]
 
-@router.put("/edit_attendence/{employee_id}")
+@router.put("/edit_attendence/{attendance_id}")
 async def edit_attendence(
-        employee_id: int,
+        attendance_id: int,
         date: date = Form(...),
         check_in: str = Form(...),
-        check_out: str = Form(...), 
+        check_out: str = Form(None),
         status: AttendenceType = Form(...),
         notes: Optional[str] = Form(None),
         db: Session = Depends(get_db)):
-    
-    attendence = db.query(AttendenceModel).filter(AttendenceModel.employee_id == employee_id).first()
+
+    attendence = db.query(AttendenceModel).filter(AttendenceModel.id == attendance_id).first()
     if not attendence:
         raise HTTPException(status_code=404, detail="Attendence not found")
     
@@ -174,9 +181,9 @@ async def edit_attendence(
         }
     }
 
-@router.delete("/delete_attendence/{employee_id}")
-async def delete_attendence(employee_id: int, db: Session = Depends(get_db)):
-    attendence = db.query(AttendenceModel).filter(AttendenceModel.employee_id == employee_id).first()
+@router.delete("/delete_attendence/{attendance_id}")
+async def delete_attendence(attendance_id: int, db: Session = Depends(get_db)):
+    attendence = db.query(AttendenceModel).filter(AttendenceModel.id == attendance_id).first()
     if not attendence:
         raise HTTPException(status_code=404, detail="Attendence not found")
     db.delete(attendence)

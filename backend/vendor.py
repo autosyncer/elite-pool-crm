@@ -15,6 +15,7 @@ async def get_all_vendors(db: Session = Depends(get_db)):
             "id": v.id,
             "name": v.name,
             "category": v.category,
+            "gst_number": v.gst_number,
             "contact_person": v.contact_person,
             "phone": v.phone,
             "email": v.email,
@@ -31,6 +32,7 @@ async def get_all_vendors(db: Session = Depends(get_db)):
 async def create_vendor(
     name: str = Form(...),
     category: VendorCategoryEnum = Form(...),
+    gst_number: Optional[str] = Form(None),
     contact_person: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
@@ -42,6 +44,7 @@ async def create_vendor(
     vendor = VendorModel(
         name=name,
         category=category,
+        gst_number=gst_number,
         contact_person=contact_person,
         phone=phone,
         email=email,
@@ -60,6 +63,7 @@ async def update_vendor(
     vendor_id: int,
     name: Optional[str] = Form(None),
     category: Optional[VendorCategoryEnum] = Form(None),
+    gst_number: Optional[str] = Form(None),
     contact_person: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
@@ -76,6 +80,8 @@ async def update_vendor(
         vendor.name = name
     if category is not None:
         vendor.category = category
+    if gst_number is not None:
+        vendor.gst_number = gst_number
     if contact_person is not None:
         vendor.contact_person = contact_person
     if phone is not None:

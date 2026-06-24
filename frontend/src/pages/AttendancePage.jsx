@@ -93,7 +93,7 @@ const AttendancePage = () => {
     if (editAttModal.notes) formData.append('notes', editAttModal.notes);
 
     try {
-      const res = await axios.put(`/attendence/edit_attendence/${editAttModal.empId}`, formData);
+      const res = await axios.put(`/attendence/edit_attendence/${editAttModal.id}`, formData);
       toast(res.data.message, 'success');
       refreshAttendance();
       setEditAttModal(null);

@@ -13,7 +13,9 @@ const ConstructionPage = () => {
   const [logModal, setLogModal] = useState({ open: false, siteId: null });
   const [plansModal, setPlansModal] = useState({ open: false, siteId: null });
   const [viewLogsModal, setViewLogsModal] = useState({ open: false, siteId: null });
-  const [stagedPlans, setStagedPlans] = useState({}); // Staging area for plan uploads
+  const [stagedPlans, setStagedPlans] = useState({});
+  const [otherLabel, setOtherLabel] = useState('');
+  const [otherFile, setOtherFile] = useState(null);
   const [localSites, setLocalSites] = useState([]);
   const [search, setSearch] = useState('');
 
@@ -176,6 +178,29 @@ const ConstructionPage = () => {
     } catch (error) {
       console.error("Error deleting plan:", error);
       toast('❌ Failed to remove plan', 'error');
+    }
+  };
+
+  const uploadOtherPlan = async (siteId) => {
+    if (!otherFile) { toast('Please select a file', 'error'); return; }
+    const site = getSite(siteId);
+    try {
+      const formData = new FormData();
+      formData.append('site_code', site.site_code);
+      formData.append('upload_plan_type', 'other');
+      const renamedFile = otherLabel
+        ? new File([otherFile], `${otherLabel} - ${otherFile.name}`, { type: otherFile.type })
+        : otherFile;
+      formData.append('upload_plans', renamedFile);
+      await axios.post('/construction/uploading_plans', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast('📎 Other file uploaded!', 'success');
+      setOtherLabel('');
+      setOtherFile(null);
+      fetchSites();
+      refreshConstructionSites();
+    } catch (error) {
+      console.error('Error uploading other plan:', error);
+      toast('❌ Upload failed', 'error');
     }
   };
 
@@ -347,7 +372,7 @@ const ConstructionPage = () => {
       </Modal>
 
       {/* Plans Modal */}
-      <Modal open={plansModal.open} onClose={() => setPlansModal({ open: false })} title="📐 Technical Drawings & Plans" wide>
+      <Modal open={plansModal.open} onClose={() => { setPlansModal({ open: false }); setOtherLabel(''); setOtherFile(null); }} title="📐 Technical Drawings & Plans" wide>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
           {['schematic', 'plumbing', 'electrical', 'sectional', 'pumpRoom', 'cad'].map(type => {
             const site = getSite(plansModal.siteId);
@@ -385,6 +410,58 @@ const ConstructionPage = () => {
             )
           })}
         </div>
+
+        {/* Other Files Section */}
+        {(() => {
+          const site = getSite(plansModal.siteId);
+          const others = site?.otherPlans || [];
+          return (
+            <div style={{ marginTop: '28px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
+              <div style={{ fontWeight: 800, fontSize: '13px', color: 'var(--text2)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Other Documents
+              </div>
+
+              {/* Existing other files */}
+              {others.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {others.map((f, i) => (
+                    <div key={f.id} className="card" style={{ padding: '12px 16px', background: 'var(--bg2)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ flex: 1, fontSize: '13px', color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {f.name}
+                      </div>
+                      <a href={`${API_BASE_URL}/construction/plan/${f.id}/view`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }}>View</a>
+                      <button onClick={() => deletePlan(f.id)} className="btn btn-red btn-sm" style={{ padding: '8px' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new other file */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div className="fg" style={{ flex: 1, minWidth: '160px', marginBottom: 0 }}>
+                  <label className="fl">Label / Description</label>
+                  <input className="fi" placeholder="e.g. Elevation Plan, BOQ..." value={otherLabel} onChange={e => setOtherLabel(e.target.value)} />
+                </div>
+                <div className="fg" style={{ flex: 1, minWidth: '160px', marginBottom: 0 }}>
+                  <label className="fl">File</label>
+                  <label className="btn btn-ghost" style={{ cursor: 'pointer', width: '100%', justifyContent: 'center' }}>
+                    {otherFile ? otherFile.name : 'Choose File'}
+                    <input type="file" hidden onChange={e => setOtherFile(e.target.files[0] || null)} />
+                  </label>
+                </div>
+                <button
+                  className="btn btn-sky"
+                  style={{ whiteSpace: 'nowrap', alignSelf: 'flex-end' }}
+                  onClick={() => uploadOtherPlan(plansModal.siteId)}
+                >
+                  + Upload
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* View Logs Modal */}

@@ -48,9 +48,13 @@ const EditLeadPage = () => {
         : `/construction-leads/update/${lead.db_id}`;
 
       const payload = {
+        name: formData.name,
+        phone: formData.phone,
         location: formData.loc,
+        inquiry_source: formData.src,
         requirements: formData.req,
-        priority: formData.pri
+        priority: formData.pri,
+        notes: formData.notes
       };
 
       await axios.put(endpoint, payload);
@@ -78,11 +82,11 @@ const EditLeadPage = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div className="fg">
             <label className="fl">Client Name</label>
-            <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: '14px' }}>{formData.name}</div>
+            <input className="fi" name="name" value={formData.name} onChange={handleInputChange} placeholder="Enter client name..." />
           </div>
           <div className="fg">
             <label className="fl">Phone Number</label>
-            <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: '14px' }}>{formData.phone}</div>
+            <input className="fi" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Enter phone number..." />
           </div>
           <div className="fg">
             <label className="fl">Location</label>
@@ -90,11 +94,14 @@ const EditLeadPage = () => {
           </div>
           <div className="fg">
             <label className="fl">Inquiry Source</label>
-            <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: '13px', textTransform: 'uppercase' }}>{formData.src}</div>
+            <input className="fi" name="src" value={formData.src} onChange={handleInputChange} placeholder="Enter inquiry source..." />
           </div>
           <div className="fg">
             <label className="fl">Lead Type</label>
-            <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: '13px', textTransform: 'uppercase' }}>{formData.leadType === 'amc' ? 'Pool Maintenance (AMC)' : 'Pool Construction'}</div>
+            <select className="fs" name="leadType" value={formData.leadType} onChange={handleInputChange}>
+              <option value="construction">Pool Construction</option>
+              <option value="amc">Pool Maintenance (AMC)</option>
+            </select>
           </div>
           <div className="fg">
             <label className="fl">Priority</label>
@@ -108,7 +115,7 @@ const EditLeadPage = () => {
           </div>
           <div className="fg" style={{ gridColumn: 'span 2' }}>
             <label className="fl">Internal Staff Notes</label>
-            <div style={{ fontSize: '13px', color: 'var(--text3)', fontStyle: 'italic', padding: '4px 0' }}>{formData.notes || 'No internal notes provided'}</div>
+            <textarea className="ft" name="notes" value={formData.notes} onChange={handleInputChange} placeholder="No internal notes provided" style={{ minHeight: '80px' }} />
           </div>
         </div>
         <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>

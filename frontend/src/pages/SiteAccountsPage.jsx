@@ -274,8 +274,10 @@ const SiteAccountsPage = ({ company }) => {
   const [addClientModal, setAddClientModal] = useState(false);
   const [invoiceModal, setInvoiceModal] = useState({ open: false, siteName: null, invoices: [], generated: [] });
   const [invoiceUploadModal, setInvoiceUploadModal] = useState({ open: false, siteName: null });
+  const [balEdit, setBalEdit] = useState(null); // { siteId, siteName, currentBalance }
+  const [balValue, setBalValue] = useState('');
 
-  const [newTrans, setNewTrans] = useState({ amount: '', desc: '', date: new Date().toISOString().split('T')[0], category: 'Materials' });
+  const [newTrans, setNewTrans] = useState({ amount: '', desc: '', date: new Date().toISOString().split('T')[0], category: 'Materials', payMode: 'cash', paidTo: '', purchasedFrom: '' });
   const [clientSource, setClientSource] = useState('manual');
   const [newClientSearch, setNewClientSearch] = useState('');
   const [manualClient, setManualClient] = useState({ name: '', location: '', type: '', budget: '', contact: '' });
@@ -344,27 +346,52 @@ const SiteAccountsPage = ({ company }) => {
     try {
       if (company === 'm2a') {
         if (transModal.type === 'payment') {
-          await axios.put(`/m2a_accouts/update_account/${site.siteName}`, `amount=${amt}&payment_date=${newTrans.date}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+          await axios.put(`/m2a_accouts/update_account/${encodeURIComponent(site.siteName)}`, `amount=${amt}&payment_date=${newTrans.date}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         } else {
           const m2aMap = { 'Materials': 'material', 'Labour': 'labour', 'Transport': 'transport', 'Equipment': 'equipment', 'Petty Cash': 'miscellaneous', 'Other': 'miscellaneous' };
-          await axios.put(`/m2a_accouts/add_expenses/${site.siteName}`, `amount=${amt}&expense_type=${m2aMap[newTrans.category] || 'miscellaneous'}&expense_date=${newTrans.date}&description=${newTrans.desc}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+          await axios.put(`/m2a_accouts/add_expenses/${encodeURIComponent(site.siteName)}`, `amount=${amt}&expense_type=${m2aMap[newTrans.category] || 'miscellaneous'}&expense_date=${newTrans.date}&description=${newTrans.desc}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         }
       } else {
         if (transModal.type === 'payment') {
-          await axios.put(`/elite-pool-accounts/add_payment/${site.siteName}`, `amount=${amt}&payment_date=${newTrans.date}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+          await axios.put(`/elite-pool-accounts/add_payment/${encodeURIComponent(site.siteName)}`, `amount=${amt}&payment_date=${newTrans.date}&pay_mode=${newTrans.payMode}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         } else {
           const catMap = { 'Materials': 'materials', 'Labour': 'labour', 'Transport': 'transport', 'Equipment': 'equipment', 'Other': 'miscellaneous', 'Petty Cash': 'miscellaneous' };
-          await axios.put(`/elite-pool-accounts/add_expenses/${site.siteName}`, `amount=${amt}&expense_type=${catMap[newTrans.category] || 'miscellaneous'}&expense_date=${newTrans.date}&description=${newTrans.desc}`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+          const expParams = new URLSearchParams({ amount: amt, expense_type: catMap[newTrans.category] || 'miscellaneous', expense_date: newTrans.date, description: newTrans.desc, pay_mode: newTrans.payMode, paid_to: newTrans.paidTo, purchased_from: newTrans.purchasedFrom });
+          await axios.put(`/elite-pool-accounts/add_expenses/${encodeURIComponent(site.siteName)}`, expParams.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         }
       }
       toast(`✅ ${transModal.type === 'payment' ? 'Payment' : 'Expense'} recorded`, 'success');
       setTransModal({ open: false });
-      setNewTrans({ amount: '', desc: '', date: new Date().toISOString().split('T')[0], category: 'Materials' });
+      setNewTrans({ amount: '', desc: '', date: new Date().toISOString().split('T')[0], category: 'Materials', payMode: 'cash', paidTo: '', purchasedFrom: '' });
       await refreshAccountDetails(site.siteName, company);
       refreshSiteAccounts();
     } catch (err) {
       console.error(err);
       toast('Failed to record transaction', 'error');
+    }
+  };
+
+  const handleAdjustBalance = async () => {
+    if (!balEdit) return;
+    const target = parseFloat(balValue);
+    if (isNaN(target)) { toast('Enter a valid amount', 'error'); return; }
+    const diff = target - balEdit.currentBalance;
+    if (diff === 0) { setBalEdit(null); setBalValue(''); return; }
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      if (diff > 0) {
+        const fd = new URLSearchParams({ amount: diff, payment_date: today, pay_mode: 'cash' });
+        await axios.put(`/elite-pool-accounts/add_payment/${encodeURIComponent(balEdit.siteName)}`, fd.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      } else {
+        const fd = new URLSearchParams({ amount: Math.abs(diff), expense_type: 'miscellaneous', expense_date: today, description: 'Balance Adjustment' });
+        await axios.put(`/elite-pool-accounts/add_expenses/${encodeURIComponent(balEdit.siteName)}`, fd.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      }
+      toast('Balance updated', 'success');
+      setBalEdit(null); setBalValue('');
+      await refreshAccountDetails(balEdit.siteName, company);
+      refreshSiteAccounts();
+    } catch (err) {
+      toast(err?.response?.data?.detail || 'Adjustment failed', 'error');
     }
   };
 
@@ -412,7 +439,7 @@ const SiteAccountsPage = ({ company }) => {
 
   const handleViewInvoices = async (siteName) => {
     let uploaded = [], generated = [];
-    try { const r = await axios.get(`/elite-pool-accounts/invoices/${siteName}`); uploaded = r.data || []; } catch (_) {}
+    try { const r = await axios.get(`/elite-pool-accounts/invoices/${encodeURIComponent(siteName)}`); uploaded = r.data || []; } catch (_) {}
     try { const r = await axios.get(`/invoices/by-project/${encodeURIComponent(siteName)}`); generated = r.data || []; } catch (_) {}
     setInvoiceModal({ open: true, siteName, invoices: uploaded, generated });
   };
@@ -426,7 +453,7 @@ const SiteAccountsPage = ({ company }) => {
     if (invoiceForm.date) formData.append('invoice_date', invoiceForm.date);
     if (invoiceForm.description) formData.append('description', invoiceForm.description);
     try {
-      await axios.post(`/elite-pool-accounts/upload-invoice/${invoiceUploadModal.siteName}`, formData);
+      await axios.post(`/elite-pool-accounts/upload-invoice/${encodeURIComponent(invoiceUploadModal.siteName)}`, formData);
       toast('Invoice uploaded', 'success');
       setInvoiceUploadModal({ open: false, siteName: null });
       setInvoiceForm({ number: '', amount: '', date: new Date().toISOString().split('T')[0], description: '', file: null });
@@ -599,7 +626,17 @@ const SiteAccountsPage = ({ company }) => {
                     </td>
                     <td style={{ color: 'var(--green)', fontWeight: 600 }}>{fmt(totalIn)}</td>
                     <td style={{ color: 'var(--red)', fontWeight: 600 }}>{fmt(totalOut)}</td>
-                    <td style={{ color: balance >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 800 }}>{fmt(balance)}</td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ color: balance >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 800 }}>{fmt(balance)}</span>
+                        {company === 'elitePool' && (
+                          <button onClick={() => { setBalEdit({ siteId: s.id, siteName: s.siteName, currentBalance: balance }); setBalValue(String(balance)); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: '2px', display: 'flex', opacity: 0.6 }} title="Adjust balance">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                         {company === 'elitePool' && (
@@ -672,6 +709,15 @@ const SiteAccountsPage = ({ company }) => {
         <div className="fg"><label className="fl">Description / Source</label><input className="fi" placeholder={transModal.type === 'payment' ? 'e.g. Client Installment' : 'e.g. Cement Purchase'} value={newTrans.desc} onChange={e => setNewTrans({ ...newTrans, desc: e.target.value })} /></div>
         <div className="fr" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <div className="fg"><label className="fl">Transaction Date</label><input className="fi" type="date" value={newTrans.date} onChange={e => setNewTrans({ ...newTrans, date: e.target.value })} /></div>
+          {transModal.type === 'payment' && (
+            <div className="fg"><label className="fl">Pay Mode</label>
+              <select className="fs" value={newTrans.payMode} onChange={e => setNewTrans({ ...newTrans, payMode: e.target.value })}>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="net_banking">Net Banking</option>
+              </select>
+            </div>
+          )}
           {transModal.type === 'expense' && (
             <div className="fg"><label className="fl">Category</label>
               <select className="fs" value={newTrans.category} onChange={e => setNewTrans({ ...newTrans, category: e.target.value })}>
@@ -680,6 +726,25 @@ const SiteAccountsPage = ({ company }) => {
             </div>
           )}
         </div>
+        {transModal.type === 'expense' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="fg"><label className="fl">Pay Mode</label>
+              <select className="fs" value={newTrans.payMode} onChange={e => setNewTrans({ ...newTrans, payMode: e.target.value })}>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="net_banking">Net Banking</option>
+              </select>
+            </div>
+            <div className="fg"><label className="fl">To Whom Paid</label>
+              <input className="fi" placeholder="e.g. Raju Contractor" value={newTrans.paidTo} onChange={e => setNewTrans({ ...newTrans, paidTo: e.target.value })} />
+            </div>
+            {newTrans.category === 'Equipment' && (
+              <div className="fg" style={{ gridColumn: 'span 2' }}><label className="fl">Purchased From (Vendor / Shop)</label>
+                <input className="fi" placeholder="e.g. Hyderabad Tools Mart" value={newTrans.purchasedFrom} onChange={e => setNewTrans({ ...newTrans, purchasedFrom: e.target.value })} />
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
       {/* Invoice List Modal (EP only) */}
@@ -689,7 +754,7 @@ const SiteAccountsPage = ({ company }) => {
         uploaded={invoiceModal.invoices}
         generated={invoiceModal.generated}
         onClose={() => setInvoiceModal({ open: false, siteName: null, invoices: [], generated: [] })}
-        onUpload={() => { setInvoiceModal(prev => ({ ...prev, open: false })); setInvoiceUploadModal({ open: true, siteName: invoiceModal.siteName }); }}
+        onUpload={async () => { setInvoiceModal(prev => ({ ...prev, open: false })); setInvoiceUploadModal({ open: true, siteName: invoiceModal.siteName }); try { const { data } = await axios.get('/invoices/next-number'); setInvoiceForm(prev => ({ ...prev, number: data.invoice_no })); } catch {} }}
         onDeleteUploaded={handleDeleteInvoice}
         fmt={fmt}
       />
@@ -702,7 +767,12 @@ const SiteAccountsPage = ({ company }) => {
         </>
       }>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <div className="fg"><label className="fl">Invoice Number</label><input className="fi" placeholder="e.g. INV-001" value={invoiceForm.number} onChange={e => setInvoiceForm({ ...invoiceForm, number: e.target.value })} /></div>
+          <div className="fg"><label className="fl">Invoice Number</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input className="fi" placeholder="EPB-001" value={invoiceForm.number} onChange={e => setInvoiceForm({ ...invoiceForm, number: e.target.value })} style={{ flex: 1 }} />
+              <button type="button" onClick={async () => { try { const { data } = await axios.get('/invoices/next-number'); setInvoiceForm(prev => ({ ...prev, number: data.invoice_no })); } catch {} }} style={{ padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}>Auto</button>
+            </div>
+          </div>
           <div className="fg"><label className="fl">Amount (₹)</label><input className="fi" type="number" placeholder="0.00" value={invoiceForm.amount} onChange={e => setInvoiceForm({ ...invoiceForm, amount: e.target.value })} /></div>
           <div className="fg"><label className="fl">Invoice Date</label><input className="fi" type="date" value={invoiceForm.date} onChange={e => setInvoiceForm({ ...invoiceForm, date: e.target.value })} /></div>
           <div className="fg"><label className="fl">Description</label><input className="fi" placeholder="Invoice notes" value={invoiceForm.description} onChange={e => setInvoiceForm({ ...invoiceForm, description: e.target.value })} /></div>
@@ -711,6 +781,37 @@ const SiteAccountsPage = ({ company }) => {
             <input className="fi" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setInvoiceForm({ ...invoiceForm, file: e.target.files[0] })} />
           </div>
         </div>
+      </Modal>
+
+      {/* Adjust Net Balance Modal */}
+      <Modal
+        open={!!balEdit}
+        onClose={() => { setBalEdit(null); setBalValue(''); }}
+        title={<span>Adjust Net Balance — {balEdit?.siteName}</span>}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => { setBalEdit(null); setBalValue(''); }}>Cancel</button>
+            <button className="btn btn-sky" onClick={handleAdjustBalance}>Apply</button>
+          </>
+        }
+      >
+        {balEdit && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg3)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+              <span style={{ color: 'var(--text3)' }}>Current Balance</span>
+              <span style={{ fontWeight: 700, color: balEdit.currentBalance >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(balEdit.currentBalance)}</span>
+            </div>
+            <div className="fg">
+              <label className="fl">Set New Net Balance (₹)</label>
+              <input className="fi" type="number" value={balValue} onChange={e => setBalValue(e.target.value)} autoFocus />
+            </div>
+            {balValue !== '' && parseFloat(balValue) !== balEdit.currentBalance && (
+              <div style={{ marginTop: '10px', padding: '8px 14px', borderRadius: '8px', background: parseFloat(balValue) > balEdit.currentBalance ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)', fontSize: '12px', fontWeight: 700, color: parseFloat(balValue) > balEdit.currentBalance ? 'var(--green)' : 'var(--red)' }}>
+                Adjustment: {parseFloat(balValue) > balEdit.currentBalance ? '+' : ''}{fmt(parseFloat(balValue) - balEdit.currentBalance)}
+              </div>
+            )}
+          </>
+        )}
       </Modal>
     </div>
   );

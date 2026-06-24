@@ -350,8 +350,8 @@ export const AppProvider = ({ children }) => {
         const pType = (acc.project_type || acc.project || '').toLowerCase();
         const type = pType.includes('amc') ? 'amc' : 'construction';
         
-        const backendPayments = (acc.payments || []).map(p => ({ amount: parseFloat(p.amount), date: p.payment_date }));
-        const backendExpenses = (acc.expenses || []).map(e => ({ amount: parseFloat(e.amount), date: e.payment_date || e.expense_date, description: e.description, category: e.expenses_type || e.expense_type }));
+        const backendPayments = (acc.payments || []).map(p => ({ id: p.id, amount: parseFloat(p.amount), date: p.payment_date }));
+        const backendExpenses = (acc.expenses || []).map(e => ({ id: e.id, amount: parseFloat(e.amount), date: e.payment_date || e.expense_date, description: e.description, category: e.expenses_type || e.expense_type }));
 
         accounts.push({
           id: 'ep_' + acc.id,
@@ -403,9 +403,9 @@ export const AppProvider = ({ children }) => {
 
   const refreshAccountDetails = async (siteName, companyType) => {
     try {
-      const endpoint = companyType === 'elitePool' 
-        ? `/elite-pool-accounts/account_details/${siteName}`
-        : `/m2a_accouts/account_details/${siteName}`;
+      const endpoint = companyType === 'elitePool'
+        ? `/elite-pool-accounts/account_details/${encodeURIComponent(siteName)}`
+        : `/m2a_accouts/account_details/${encodeURIComponent(siteName)}`;
       
       const res = await axios.get(endpoint);
       const { payments, expenses } = res.data;
@@ -422,8 +422,8 @@ export const AppProvider = ({ children }) => {
           updated.elitePool = {
             ...updated.elitePool,
             [target]: {
-              payments: payments.map(p => ({ amount: parseFloat(p.amount), date: p.payment_date })),
-              expenditures: expenses.map(e => ({ amount: parseFloat(e.amount), date: e.payment_date || e.expense_date, description: e.description, category: e.expenses_type }))
+              payments: payments.map(p => ({ id: p.id, amount: parseFloat(p.amount), date: p.payment_date })),
+              expenditures: expenses.map(e => ({ id: e.id, amount: parseFloat(e.amount), date: e.payment_date || e.expense_date, description: e.description, category: e.expenses_type }))
             }
           };
         } else {

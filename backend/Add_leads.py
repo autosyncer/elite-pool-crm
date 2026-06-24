@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional, Literal
-import random
+import re
 
 from database import get_db
 from models import ConstructionLeadModel, AMCLeadModel, LeadStatus, LeadSource
@@ -20,6 +20,25 @@ class LeadCreate(BaseModel):
     budget: List[str] = ["With Kids Pool","End-To-End","MEP"]
     pri: str = "Normal"
     notes: Optional[str] = ""
+    lead_code: Optional[str] = None
+
+
+@router.get("/next-code/{lead_type}")
+async def next_lead_code(lead_type: str, db: Session = Depends(get_db)):
+    """Return next sequential lead code like EPB-C-001 or EPB-A-001."""
+    prefix = "EPB-C" if lead_type == "construction" else "EPB-A"
+    Model = ConstructionLeadModel if lead_type == "construction" else AMCLeadModel
+    all_codes = [r.lead_code for r in db.query(Model.lead_code).all()]
+    max_num = 0
+    for code in all_codes:
+        c = str(code or '')
+        # Only count codes that start with EPB- prefix (ignore old random L-codes)
+        if not c.upper().startswith('EPB-'):
+            continue
+        m = re.search(r'(\d+)$', c)
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    return {"lead_code": f"{prefix}-{max_num + 1:03d}"}
 
 def map_source(src_str: str) -> LeadSource:
     src_lower = src_str.lower()
@@ -31,8 +50,22 @@ def map_source(src_str: str) -> LeadSource:
 
 @router.post("/create")
 async def create_lead(lead_data: LeadCreate, db: Session = Depends(get_db)):
-    # Generate a random lead code
-    lead_code = f"L{random.randint(1000, 9999)}"
+    # Use provided lead_code or auto-generate sequential one
+    if lead_data.lead_code and lead_data.lead_code.strip():
+        lead_code = lead_data.lead_code.strip()
+    else:
+        prefix = "EPB-C" if lead_data.lt == "construction" else "EPB-A"
+        Model = ConstructionLeadModel if lead_data.lt == "construction" else AMCLeadModel
+        all_codes = [r.lead_code for r in db.query(Model.lead_code).all()]
+        max_num = 0
+        for code in all_codes:
+            c = str(code or '')
+            if not c.upper().startswith('EPB-'):
+                continue
+            m = re.search(r'(\d+)$', c)
+            if m:
+                max_num = max(max_num, int(m.group(1)))
+        lead_code = f"{prefix}-{max_num + 1:03d}"
     
     # Combine req, budget, pri, and notes into the single 'requirement' text field
     combined_req = lead_data.req

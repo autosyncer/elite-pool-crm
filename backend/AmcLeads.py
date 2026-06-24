@@ -9,9 +9,13 @@ from pydantic import BaseModel
 from typing import Optional
 
 class AMCLeadUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
     requirements: Optional[str] = None
     priority: Optional[str] = None
     location: Optional[str] = None
+    inquiry_source: Optional[str] = None
+    notes: Optional[str] = None
 
 router = APIRouter(prefix="/amc-leads", tags=["amc_leads"])
 
@@ -49,14 +53,18 @@ async def update_lead(lead_id: int, update_data: AMCLeadUpdate, db: Session = De
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
+    if update_data.name is not None:
+        lead.name = update_data.name
+    if update_data.phone is not None:
+        lead.phone = update_data.phone
     if update_data.requirements is not None:
         lead.requirement = update_data.requirements
-        
     if update_data.priority is not None:
         lead.priority = update_data.priority
-
     if update_data.location is not None:
         lead.location = update_data.location
+    if update_data.inquiry_source is not None:
+        lead.source = map_source(update_data.inquiry_source)
         
     db.commit()
     db.refresh(lead)

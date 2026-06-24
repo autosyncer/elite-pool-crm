@@ -97,7 +97,14 @@ export default function InvoiceGeneratorPage() {
     catch { setSavedInvoices([]); }
   }, []);
 
-  useEffect(() => { fetchSaved(); }, [fetchSaved]);
+  const fetchNextNumber = useCallback(async () => {
+    try {
+      const { data } = await axios.get('/invoices/next-number');
+      setF('invoice_no', data.invoice_no);
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchSaved(); fetchNextNumber(); }, [fetchSaved, fetchNextNumber]);
 
   useEffect(() => {
     // Merge sites from context (already loaded) + API to get every EP site
@@ -144,9 +151,7 @@ export default function InvoiceGeneratorPage() {
 
   const autoInvoiceNo = () => {
     const d = new Date();
-    const yy = String(d.getFullYear()).slice(-2);
-    const next = String(savedInvoices.length + 1).padStart(2, '0');
-    setF('invoice_no', `INV${yy}-${yy + 1}EP-${next}`);
+    fetchNextNumber();
   };
 
   const handleSave = async () => {
@@ -167,6 +172,7 @@ export default function InvoiceGeneratorPage() {
       });
       alert('Invoice saved!');
       fetchSaved();
+      fetchNextNumber();
       refreshSiteAccounts?.();
     } catch (e) {
       const detail = e?.response?.data?.detail;

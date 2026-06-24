@@ -50,6 +50,18 @@ async def mark_procured(procurement_id: int, db: Session = Depends(get_db)):
 
     return {"message": "Item marked as procured"}
 
+@router.post("/add-manual")
+async def add_manual_procurement(
+    client_name: str = Form(...),
+    site_name: str = Form(...),
+    site_type: str = Form(...),
+    requirements: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    create_procurement_entry(db, client_name, site_name, site_type, requirements)
+    db.commit()
+    return {"message": "Manual procurement entry added"}
+
 @router.delete("/delete/{procurement_id}")
 async def delete_procurement(procurement_id: int, db: Session = Depends(get_db)):
     item = db.query(ProcurementModel).filter(ProcurementModel.id == procurement_id).first()

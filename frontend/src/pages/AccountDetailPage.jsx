@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import axios from 'axios';
+import Modal from '../components/common/Modal';
 
 const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
@@ -25,6 +26,9 @@ const AccountDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [editTxn, setEditTxn] = useState(null); // { id, kind, amount, date, description }
+  const [balModal, setBalModal] = useState(false);
+  const [newBalance, setNewBalance] = useState('');
   const [personFilter, setPersonFilter] = useState('All');
   const [uploadForm, setUploadForm] = useState({ invoice_number: '', amount: '', invoice_date: new Date().toISOString().slice(0, 10), description: '' });
   const [uploadFile, setUploadFile] = useState(null);
@@ -151,6 +155,54 @@ const AccountDetailPage = () => {
 
   const filteredTxns = personFilter === 'All' ? allTxns : allTxns.filter(t => t.kind === 'INFLOW' || t.person === personFilter);
 
+  const handleAdjustBalance = async () => {
+    const target = parseFloat(newBalance);
+    if (isNaN(target)) return;
+    const diff = target - balance;
+    if (diff === 0) { setBalModal(false); return; }
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      if (diff > 0) {
+        // Add inflow adjustment
+        const fd = new URLSearchParams({ amount: diff, payment_date: today, pay_mode: 'cash' });
+        await axios.put(`/elite-pool-accounts/add_payment/${encodeURIComponent(decodedName)}`, fd.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      } else {
+        // Add expense adjustment
+        const fd = new URLSearchParams({ amount: Math.abs(diff), expense_type: 'miscellaneous', expense_date: today, description: 'Balance Adjustment' });
+        await axios.put(`/elite-pool-accounts/add_expenses/${encodeURIComponent(decodedName)}`, fd.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      }
+      setBalModal(false);
+      setNewBalance('');
+      await refreshAccountDetails(decodedName, companyType);
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Adjustment failed');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTxn || !editTxn.amount || !editTxn.date) return;
+    const fd = new URLSearchParams({ amount: editTxn.amount, payment_date: editTxn.date, ...(editTxn.kind === 'EXPENSE' && editTxn.description ? { description: editTxn.description } : {}) });
+    try {
+      const ep = editTxn.kind === 'INFLOW' ? `/elite-pool-accounts/edit_payment/${editTxn.id}` : `/elite-pool-accounts/edit_expense/${editTxn.id}`;
+      await axios.put(ep, fd.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      setEditTxn(null);
+      await refreshAccountDetails(decodedName, companyType);
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Update failed');
+    }
+  };
+
+  const handleDeleteTxn = async (t) => {
+    if (!window.confirm(`Delete this ${t.kind === 'INFLOW' ? 'payment' : 'expense'} of ${fmt(t.amount)}?`)) return;
+    try {
+      const ep = t.kind === 'INFLOW' ? `/elite-pool-accounts/delete_payment/${t.id}` : `/elite-pool-accounts/delete_expense/${t.id}`;
+      await axios.delete(ep);
+      await refreshAccountDetails(decodedName, companyType);
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Delete failed');
+    }
+  };
+
   let running = 0;
 
   return (
@@ -178,7 +230,14 @@ const AccountDetailPage = () => {
           <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--red)' }}>{fmt(totalOut)}</div>
         </div>
         <div className="card stat" style={{ borderLeft: '4px solid var(--sky)' }}>
-          <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '6px' }}>Net Balance</div>
+          <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            Net Balance
+            {companyType === 'elitePool' && (
+              <button onClick={() => { setNewBalance(balance); setBalModal(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: '2px', display: 'flex' }} title="Adjust balance">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+              </button>
+            )}
+          </div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: balance >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(balance)}</div>
         </div>
         <div className="card stat" style={{ borderLeft: '4px solid var(--orange, #f97316)' }}>
@@ -232,6 +291,7 @@ const AccountDetailPage = () => {
                 <th>Category</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
                 <th style={{ textAlign: 'right' }}>Running Balance</th>
+                {companyType === 'elitePool' && <th style={{ textAlign: 'right' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -268,6 +328,20 @@ const AccountDetailPage = () => {
                     <td style={{ textAlign: 'right', fontWeight: 800, color: running >= 0 ? 'var(--green)' : 'var(--red)' }}>
                       {fmt(running)}
                     </td>
+                    {companyType === 'elitePool' && (
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }}
+                            onClick={() => setEditTxn({ id: t.id, kind: t.kind, amount: t.amount, date: t.date, description: t.description || '' })}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                          </button>
+                          <button className="btn btn-sm" style={{ padding: '4px 8px', border: '1px solid var(--red)', color: 'var(--red)', background: 'transparent', cursor: 'pointer' }}
+                            onClick={() => handleDeleteTxn(t)}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -447,6 +521,73 @@ const AccountDetailPage = () => {
           )}
         </div>
       )}
+
+      {/* Adjust Net Balance Modal */}
+      <Modal
+        open={balModal}
+        onClose={() => { setBalModal(false); setNewBalance(''); }}
+        title={<span>Adjust Net Balance</span>}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => { setBalModal(false); setNewBalance(''); }}>Cancel</button>
+            <button className="btn btn-sky" onClick={handleAdjustBalance}>Apply Adjustment</button>
+          </>
+        }
+      >
+        <div style={{ marginBottom: '16px', padding: '12px 16px', background: 'var(--bg3)', borderRadius: '8px', fontSize: '13px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <span style={{ color: 'var(--text3)' }}>Current Net Balance</span>
+            <span style={{ fontWeight: 700, color: balance >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmt(balance)}</span>
+          </div>
+          {newBalance !== '' && parseFloat(newBalance) !== balance && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text3)' }}>Adjustment</span>
+              <span style={{ fontWeight: 700, color: parseFloat(newBalance) > balance ? 'var(--green)' : 'var(--red)' }}>
+                {parseFloat(newBalance) > balance ? '+' : ''}{fmt(parseFloat(newBalance) - balance)}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="fg">
+          <label className="fl">Set New Net Balance (₹)</label>
+          <input className="fi" type="number" placeholder={balance} value={newBalance} onChange={e => setNewBalance(e.target.value)} autoFocus />
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>
+            A balance adjustment transaction will be added automatically.
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Transaction Modal */}
+      <Modal
+        open={!!editTxn}
+        onClose={() => setEditTxn(null)}
+        title={<span>Edit {editTxn?.kind === 'INFLOW' ? 'Payment' : 'Expense'}</span>}
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setEditTxn(null)}>Cancel</button>
+            <button className="btn btn-sky" onClick={handleSaveEdit}>Save Changes</button>
+          </>
+        }
+      >
+        {editTxn && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="fg">
+              <label className="fl">Amount (₹)</label>
+              <input className="fi" type="number" value={editTxn.amount} onChange={e => setEditTxn({ ...editTxn, amount: e.target.value })} />
+            </div>
+            <div className="fg">
+              <label className="fl">Date</label>
+              <input className="fi" type="date" value={editTxn.date} onChange={e => setEditTxn({ ...editTxn, date: e.target.value })} />
+            </div>
+            {editTxn.kind === 'EXPENSE' && (
+              <div className="fg" style={{ gridColumn: 'span 2' }}>
+                <label className="fl">Description</label>
+                <input className="fi" value={editTxn.description} onChange={e => setEditTxn({ ...editTxn, description: e.target.value })} placeholder="Optional note" />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -6,6 +6,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import TypeBadge from '../components/common/TypeBadge';
 import SearchBar from '../components/common/SearchBar';
 import EmptyState from '../components/common/EmptyState';
+import Modal from '../components/common/Modal';
 
 const ProcurementPage = () => {
   const { procurements, setProcurements, checkAccess, toast, refreshProcurements } = useAppContext();
@@ -16,6 +17,9 @@ const ProcurementPage = () => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState('newest');
+
+  const [manualModal, setManualModal] = useState(false);
+  const [manualForm, setManualForm] = useState({ client_name: '', site_name: '', site_type: 'construction', requirements: '' });
 
   useEffect(() => {
     fetchProcurements();
@@ -66,6 +70,25 @@ const ProcurementPage = () => {
     }
   };
 
+  const submitManual = async () => {
+    if (!manualForm.client_name.trim() || !manualForm.requirements.trim()) {
+      toast('Client name and requirements are required', 'error'); return;
+    }
+    try {
+      const fd = new FormData();
+      Object.entries(manualForm).forEach(([k, v]) => fd.append(k, v));
+      await axios.post('/procurements/add-manual', fd);
+      toast('✅ Procurement entry added!', 'success');
+      setManualModal(false);
+      setManualForm({ client_name: '', site_name: '', site_type: 'construction', requirements: '' });
+      fetchProcurements();
+      refreshProcurements();
+    } catch (error) {
+      console.error('Error adding manual procurement:', error);
+      toast('❌ Failed to add entry', 'error');
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this procurement task?")) return;
     try {
@@ -85,6 +108,9 @@ const ProcurementPage = () => {
         <div className="ph-left">
           <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)' }}>Procurements</h1>
           <p style={{ fontSize: '13px', color: 'var(--text2)' }}>Manage inventory requirements and supply chain</p>
+        </div>
+        <div className="ph-right">
+          <button className="btn btn-sky" onClick={() => setManualModal(true)}>+ Add Manual Entry</button>
         </div>
       </div>
 
@@ -157,6 +183,42 @@ const ProcurementPage = () => {
           </table>
         </div>
       </div>
+      <Modal
+        open={manualModal}
+        onClose={() => { setManualModal(false); setManualForm({ client_name: '', site_name: '', site_type: 'construction', requirements: '' }); }}
+        title="📦 Add Manual Procurement Entry"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setManualModal(false)}>Cancel</button>
+            <button className="btn btn-sky" onClick={submitManual}>Add Entry</button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="fg">
+              <label className="fl">Client Name</label>
+              <input className="fi" placeholder="e.g. Mr. Sharma" value={manualForm.client_name} onChange={e => setManualForm(p => ({ ...p, client_name: e.target.value }))} />
+            </div>
+            <div className="fg">
+              <label className="fl">Site / Project Name</label>
+              <input className="fi" placeholder="e.g. Kanpur Site" value={manualForm.site_name} onChange={e => setManualForm(p => ({ ...p, site_name: e.target.value }))} />
+            </div>
+          </div>
+          <div className="fg">
+            <label className="fl">Type</label>
+            <select className="fs" value={manualForm.site_type} onChange={e => setManualForm(p => ({ ...p, site_type: e.target.value }))}>
+              <option value="construction">Construction</option>
+              <option value="amc">AMC</option>
+              <option value="general">General</option>
+            </select>
+          </div>
+          <div className="fg">
+            <label className="fl">Requirements / Items Needed</label>
+            <textarea className="ft" style={{ minHeight: '100px' }} placeholder="List the materials, equipment or items needed..." value={manualForm.requirements} onChange={e => setManualForm(p => ({ ...p, requirements: e.target.value }))} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

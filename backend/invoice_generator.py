@@ -82,6 +82,24 @@ def _fmt(inv: InvoiceModel) -> dict:
     }
 
 
+@router.get("/next-number")
+async def next_invoice_number(db: Session = Depends(get_db)):
+    """Return next sequential invoice number like EPB-001."""
+    last = db.query(InvoiceModel).order_by(InvoiceModel.id.desc()).first()
+    if not last:
+        return {"invoice_no": "EPB-001"}
+    # Try to extract numeric suffix from existing invoice numbers
+    import re
+    all_nos = [r.invoice_no for r in db.query(InvoiceModel.invoice_no).all()]
+    max_num = 0
+    for no in all_nos:
+        m = re.search(r'(\d+)$', str(no or ''))
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    next_num = max_num + 1
+    return {"invoice_no": f"EPB-{next_num:03d}"}
+
+
 @router.get("/by-project/{project_name}")
 async def get_by_project(project_name: str, db: Session = Depends(get_db)):
     records = db.query(InvoiceModel).filter(

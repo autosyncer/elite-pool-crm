@@ -3,7 +3,8 @@ import { useAppContext } from '../context/AppContext';
 import { Navigate } from 'react-router-dom';
 import axios from 'axios';
 import Modal from '../components/common/Modal';
-import html2pdf from 'html2pdf.js';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 const EXPENSE_TYPES = [
   { id: 'salaries', label: 'Staff Salaries', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> },
@@ -62,6 +63,9 @@ const OfficeExpensesPage = () => {
   const [staffSearch,  setStaffSearch]  = useState('');
   const [staffForm,    setStaffForm]    = useState({ name:'', employee_id:'', designation:'', account_no:'', bank_name:'', doj:'', phone:'' });
   const [editStaff,    setEditStaff]    = useState(null);
+  const [staffPhoto,   setStaffPhoto]   = useState(null);
+  const [staffAadhar,  setStaffAadhar]  = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [slipStaffDD,  setSlipStaffDD]  = useState('');
   const [staffDdOpen,  setStaffDdOpen]  = useState(false);
   const [manualEarnings, setManualEarnings] = useState(false);
@@ -79,15 +83,21 @@ const OfficeExpensesPage = () => {
 
   useEffect(() => { fetchStaff(); fetchSalaryHistory(); }, []);
 
+  const resetStaffForm = () => {
+    setStaffForm({ name:'', employee_id:'', designation:'', account_no:'', bank_name:'', doj:'', phone:'' });
+    setStaffPhoto(null); setStaffAadhar(null); setPhotoPreview(null); setEditStaff(null);
+  };
+
   const saveStaff = async () => {
     if (!staffForm.name) { toast('Name required', 'error'); return; }
     const fd = new FormData();
     Object.entries(staffForm).forEach(([k,v]) => { if (v) fd.append(k, v); });
+    if (staffPhoto)  fd.append('photo',  staffPhoto);
+    if (staffAadhar) fd.append('aadhar', staffAadhar);
     try {
       if (editStaff) { await axios.put(`/staff-profiles/update/${editStaff.id}`, fd); toast('Staff updated', 'success'); }
       else           { await axios.post('/staff-profiles/create', fd);               toast('Staff added',   'success'); }
-      setStaffForm({ name:'', employee_id:'', designation:'', account_no:'', bank_name:'', doj:'', phone:'' });
-      setEditStaff(null);
+      resetStaffForm();
       fetchStaff();
     } catch (_) { toast('Failed to save', 'error'); }
   };
@@ -165,16 +175,9 @@ const OfficeExpensesPage = () => {
   const slipFileName = () => `PaySlip_${(slip.empName || 'Employee').replace(/\s+/g, '_')}_${slip.month}_${slip.year}`;
 
   const slipHtml = () => {
-    const content = slipRef.current?.innerHTML || '';
-    return `<!DOCTYPE html><html><head><title>Pay Slip</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0;}
-      body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:24px;background:#fff;}
-      table{width:100%;border-collapse:collapse;}
-      td{border:1px solid #ccc;padding:5px 10px;font-size:11px;vertical-align:middle;}
-      img{max-width:100%;display:block;}
-      @media print{body{padding:8px;}}
-    </style></head><body>${content}</body></html>`;
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pay Slip</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff;padding:16px;}table{width:100%;border-collapse:collapse;}img{display:block;}@media print{body{padding:8px;}}</style>
+    </head><body><div style="max-width:700px;margin:0 auto;border:1px solid #aaa;">${buildSlipBody()}</div></body></html>`;
   };
 
   const previewSlip = () => {
@@ -183,18 +186,154 @@ const OfficeExpensesPage = () => {
     window.open(url, '_blank');
   };
 
-  const downloadPDF = () => {
-    if (!slipRef.current) return;
-    html2pdf()
-      .set({
-        margin:     [8, 8, 8, 8],
-        filename:   `${slipFileName()}.pdf`,
-        image:      { type: 'jpeg', quality: 0.98 },
-        html2canvas:{ scale: 2, useCORS: true },
-        jsPDF:      { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(slipRef.current)
-      .save();
+  const buildSlipBody = () => {
+    const rs  = (v) => `₹ ${Number(v || 0).toLocaleString('en-IN')}`;
+    const num = (n) => Number(n || 0).toLocaleString('en-IN');
+    const logoUrl = `${window.location.origin}/favicon.png`;
+
+    // All styles are fully inline — html2canvas ignores <style> blocks
+    const TD  = 'border:1px solid #ccc;padding:5px 10px;font-size:11px;vertical-align:middle;';
+    const TDG = `${TD}color:#555;`;
+    const TDB = `${TD}font-weight:700;`;
+    const TDR = `${TD}text-align:right;`;
+
+    // Single colgroup used by ALL 4-column tables — ensures vertical borders align perfectly
+    const COL4 = `<colgroup><col width="28%"/><col width="22%"/><col width="28%"/><col width="22%"/></colgroup>`;
+    const TBL  = `width:100%;border-collapse:collapse;table-layout:fixed;`;
+
+    return `
+<table style="${TBL}border-bottom:2px solid #4a8dbf;">
+  <colgroup><col width="13%"/><col width="87%"/></colgroup>
+  <tbody><tr>
+    <td style="padding:12px 10px;vertical-align:middle;border:none;">
+      <img src="${logoUrl}" style="width:72px;height:72px;object-fit:contain;display:block;"/>
+    </td>
+    <td style="padding:10px 12px;vertical-align:middle;border:none;">
+      <div style="font-size:23px;font-weight:900;color:#1a7ec4;text-transform:uppercase;letter-spacing:2px;line-height:1.1;">ELITE POOL BUILDER</div>
+      <div style="font-size:9px;color:#555;margin-top:6px;line-height:1.75;">
+        <b>Pillar No: 184 ATTAPUR, RAJENDRA NAGAR MANDAL</b><br/>
+        Flat No:3 Second Floor 2-4-74/1 SAYEED MANZIL COMPLEX, Hyderabad, Telangana 500030,<br/>
+        E-MAIL: info@elitepoolbuilder.in &nbsp;&nbsp;&nbsp; www.elitepoolbuilder.in
+      </div>
+    </td>
+  </tr></tbody>
+</table>
+
+<div style="background:#4a8dbf;color:#fff;text-align:center;font-weight:bold;font-size:14px;padding:10px 0;letter-spacing:0.5px;">
+  Pay Slip for ${slip.month} ${slip.year}
+</div>
+
+<table style="${TBL}">${COL4}
+  <tbody>
+    <tr><td style="${TDG}">Employee Name</td><td colspan="3" style="${TDB}">${slip.empName||''}</td></tr>
+    <tr><td style="${TDG}">Employee ID</td><td style="${TD}">${slip.empId||''}</td><td style="${TDG}">Designation</td><td style="${TDB}">${slip.designation||''}</td></tr>
+    <tr><td style="${TDG}">Account No.</td><td style="${TD}">${slip.accountNo||''}</td><td style="${TDG}">Bank Name</td><td style="${TD}">${slip.bankName||''}</td></tr>
+    <tr><td style="${TDG}">Date of Joining</td><td colspan="3" style="${TD}">${slip.doj||''}</td></tr>
+  </tbody>
+</table>
+
+<table style="${TBL}">${COL4}
+  <tbody>
+    <tr><td style="${TDG}">Gross Wages</td><td style="${TDR}">${rs(slip.grossWages)}</td><td style="${TDG}">CL</td><td style="${TD}color:#111;">${slip.cl||'—'}</td></tr>
+    <tr><td style="${TDG}">Total Working Days</td><td style="${TDR}">${num(slip.totalDays)}</td><td style="${TDG}">Leaves</td><td style="${TD}color:#111;">${slip.leaves||'—'}</td></tr>
+    <tr><td style="${TDG}">LOP Days</td><td style="${TDR}">${num(slip.lopDays)}</td><td style="${TDG}">Paid Days</td><td style="${TD}color:#111;font-weight:700;">${num(calc.paidDays)}</td></tr>
+  </tbody>
+</table>
+
+<table style="${TBL}">${COL4}
+  <tbody>
+    <tr>
+      <td colspan="2" style="${TD}background:#d0e4f5;font-weight:700;text-align:center;font-size:12px;color:#1a4f6e;">Earnings</td>
+      <td colspan="2" style="${TD}background:#d0e4f5;font-weight:700;text-align:center;font-size:12px;color:#1a4f6e;">Deductions</td>
+    </tr>
+    <tr><td style="${TDG}">Basic</td><td style="${TDR}">${rs(calc.basic)}</td><td style="${TDG}">Balance Deduction</td><td style="${TDR}color:#111;">${calc.balDed>0?rs(calc.balDed):'—'}</td></tr>
+    <tr><td style="${TDG}">HRA</td><td style="${TDR}">${rs(calc.hra)}</td><td style="${TDG}">Professional Tax</td><td style="${TDR}color:#111;">${calc.profTax>0?rs(calc.profTax):'—'}</td></tr>
+    <tr><td style="${TDG}">Conveyance Allowance</td><td style="${TDR}">${rs(calc.conv)}</td><td style="${TDG}">Salary Advance</td><td style="${TDR}color:#111;">${calc.salAdv>0?rs(calc.salAdv):'—'}</td></tr>
+    <tr><td style="${TDG}">Medical Allowance</td><td style="${TDR}">${rs(calc.medical)}</td><td colspan="2" style="${TD}"></td></tr>
+    <tr><td style="${TDG}">Other Allowances</td><td style="${TDR}">${rs(calc.other)}</td><td colspan="2" style="${TD}"></td></tr>
+    <tr>
+      <td style="${TD}background:#f0f0f0;font-weight:700;color:#111;">Total Earnings</td>
+      <td style="${TDR}background:#f0f0f0;font-weight:700;color:#111;">${rs(calc.totalEarnings)}</td>
+      <td style="${TD}background:#f0f0f0;font-weight:700;color:#111;">Total Deductions</td>
+      <td style="${TDR}background:#f0f0f0;font-weight:700;color:#111;">${rs(calc.totalDed)}</td>
+    </tr>
+    <tr>
+      <td colspan="3" style="${TD}background:#4a8dbf;color:#fff;font-weight:700;font-size:13px;text-align:right;border-color:#3a7daf;">Net Salary</td>
+      <td style="${TD}background:#4a8dbf;color:#fff;font-weight:700;font-size:13px;text-align:right;border-color:#3a7daf;">${rs(calc.netSalary)}</td>
+    </tr>
+  </tbody>
+</table>
+
+<table style="${TBL}margin-top:0;"><colgroup><col width="50%"/><col width="50%"/></colgroup>
+  <tbody>
+    <tr>
+      <td style="${TD}padding:50px 16px 12px;vertical-align:bottom;font-weight:700;font-size:10px;letter-spacing:0.5px;">RECEIVED SIGNATURE</td>
+      <td style="${TD}padding:12px 16px;text-align:center;vertical-align:bottom;">
+        <img src="${logoUrl}" style="width:56px;height:56px;object-fit:contain;display:block;margin:0 auto 8px;"/>
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.5px;">Authorised Signatory</div>
+      </td>
+    </tr>
+  </tbody>
+</table>`;
+  };
+
+  const downloadPDF = async () => {
+    if (!slipRef.current) { toast('Pay slip not ready', 'error'); return; }
+    toast('Generating PDF…', 'success');
+
+    // Clone the exact bordered slip element
+    const clone = slipRef.current.cloneNode(true);
+    clone.style.cssText = 'width:700px;background:#fff;font-family:Arial,sans-serif;font-size:11px;color:#111;border:1px solid #aaa;';
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;top:0;left:0;width:700px;z-index:999999;background:#fff;padding:0;margin:0;';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    // Wait for images to load
+    await Promise.all(Array.from(wrapper.querySelectorAll('img')).map(img =>
+      new Promise(res => { if (img.complete && img.naturalWidth > 0) res(); else { img.onload = res; img.onerror = res; } })
+    ));
+
+    try {
+      const canvas = await html2canvas(wrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: 700,
+        windowWidth: 700,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 6;
+      const usableW = pageW - margin * 2;
+      const imgH = (canvas.height / canvas.width) * usableW;
+
+      // Split across pages if taller than one A4 page
+      let yPos = 0;
+      let pdfY  = margin;
+      const pxPerMm = canvas.width / usableW;
+      while (yPos < canvas.height) {
+        if (yPos > 0) { pdf.addPage(); pdfY = margin; }
+        const sliceH = Math.min((pageH - margin * 2) * pxPerMm, canvas.height - yPos);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width  = canvas.width;
+        sliceCanvas.height = sliceH;
+        sliceCanvas.getContext('2d').drawImage(canvas, 0, yPos, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.98), 'JPEG', margin, pdfY, usableW, sliceH / pxPerMm);
+        yPos += sliceH;
+      }
+      pdf.save(`${slipFileName()}.pdf`);
+      toast('PDF downloaded!', 'success');
+    } catch (err) {
+      console.error('PDF error:', err);
+      toast('PDF generation failed', 'error');
+    } finally {
+      document.body.removeChild(wrapper);
+    }
   };
 
   const printSlip = () => {
@@ -292,7 +431,10 @@ const OfficeExpensesPage = () => {
                       {e.employee_name}
                       {e.designation && <div style={{ fontSize: '10px', color: 'var(--text3)' }}>{e.designation} {e.employee_id && `• ${e.employee_id}`}</div>}
                     </td>
-                    <td style={{ color: 'var(--red)', fontWeight: 700 }}>{fmt(e.net_salary)}</td>
+                    <td>
+                      <div style={{ color: 'var(--red)', fontWeight: 700 }}>{fmt(e.net_salary)}</div>
+                      {e.total_earnings !== e.net_salary && <div style={{ fontSize: '10px', color: 'var(--text3)' }}>Gross: {fmt(e.total_earnings)}</div>}
+                    </td>
                     <td style={{ fontSize: '11px', color: 'var(--text3)' }}>{e.note || '—'}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
@@ -321,8 +463,8 @@ const OfficeExpensesPage = () => {
                             setSlipStaffDD(e.employee_name);
                             setSlipModal('preview');
                           }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                          Pay Slip
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          Preview
                         </button>
                         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={async () => {
                           if (!window.confirm(`Delete salary record for ${e.employee_name}?`)) return;
@@ -358,23 +500,56 @@ const OfficeExpensesPage = () => {
       </div>
 
       {/* ── Manage Staff Profiles Modal ── */}
-      <Modal open={staffModal} onClose={() => { setStaffModal(false); setEditStaff(null); setStaffForm({ name:'', employee_id:'', designation:'', account_no:'', bank_name:'', doj:'', phone:'' }); }} title={<span>Staff Profiles</span>} wide>
+      <Modal open={staffModal} onClose={() => { setStaffModal(false); resetStaffForm(); }} title={<span>Staff Profiles</span>} wide>
         {/* Add / Edit Form */}
         <div style={{ background: 'var(--bg3)', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
           <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: '12px' }}>
             {editStaff ? `Editing: ${editStaff.name}` : 'Add New Staff Profile'}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-            <div className="fg"><label className="fl">Full Name *</label><input className="fi" placeholder="e.g. SUMIT PANIGRAHI" value={staffForm.name} onChange={e => setStaffForm({...staffForm, name: e.target.value})} /></div>
-            <div className="fg"><label className="fl">Employee ID</label><input className="fi" placeholder="e.g. EPB-001" value={staffForm.employee_id} onChange={e => setStaffForm({...staffForm, employee_id: e.target.value})} /></div>
-            <div className="fg"><label className="fl">Designation</label><input className="fi" placeholder="e.g. LIFE GUARD" value={staffForm.designation} onChange={e => setStaffForm({...staffForm, designation: e.target.value})} /></div>
-            <div className="fg"><label className="fl">Account No.</label><input className="fi" placeholder="e.g. 20279521524 / CASH" value={staffForm.account_no} onChange={e => setStaffForm({...staffForm, account_no: e.target.value})} /></div>
-            <div className="fg"><label className="fl">Bank Name</label><input className="fi" placeholder="e.g. FINO PAYMENTS BANK" value={staffForm.bank_name} onChange={e => setStaffForm({...staffForm, bank_name: e.target.value})} /></div>
-            <div className="fg"><label className="fl">Date of Joining</label><input className="fi" placeholder="e.g. 05-07-2024" value={staffForm.doj} onChange={e => setStaffForm({...staffForm, doj: e.target.value})} /></div>
-            <div className="fg"><label className="fl">Phone</label><input className="fi" placeholder="+91 XXXXX XXXXX" value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} /></div>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            {/* Passport Photo */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <div style={{ width: '88px', height: '108px', borderRadius: '8px', border: '2px dashed var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(photoPreview || editStaff?.photo_url) ? (
+                  <img src={photoPreview || editStaff?.photo_url} alt="Photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                )}
+              </div>
+              <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', fontSize: '10px', padding: '4px 8px' }}>
+                {staffPhoto ? '✓ Selected' : 'Upload Photo'}
+                <input type="file" hidden accept="image/*" onChange={e => {
+                  const f = e.target.files[0];
+                  if (f) { setStaffPhoto(f); setPhotoPreview(URL.createObjectURL(f)); }
+                }} />
+              </label>
+              <span style={{ fontSize: '9px', color: 'var(--text3)', textAlign: 'center' }}>Passport Size</span>
+            </div>
+
+            {/* Form Fields */}
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div className="fg"><label className="fl">Full Name *</label><input className="fi" placeholder="e.g. SUMIT PANIGRAHI" value={staffForm.name} onChange={e => setStaffForm({...staffForm, name: e.target.value})} /></div>
+              <div className="fg"><label className="fl">Employee ID</label><input className="fi" placeholder="e.g. EPB-001" value={staffForm.employee_id} onChange={e => setStaffForm({...staffForm, employee_id: e.target.value})} /></div>
+              <div className="fg"><label className="fl">Designation</label><input className="fi" placeholder="e.g. LIFE GUARD" value={staffForm.designation} onChange={e => setStaffForm({...staffForm, designation: e.target.value})} /></div>
+              <div className="fg"><label className="fl">Account No.</label><input className="fi" placeholder="e.g. 20279521524 / CASH" value={staffForm.account_no} onChange={e => setStaffForm({...staffForm, account_no: e.target.value})} /></div>
+              <div className="fg"><label className="fl">Bank Name</label><input className="fi" placeholder="e.g. FINO PAYMENTS BANK" value={staffForm.bank_name} onChange={e => setStaffForm({...staffForm, bank_name: e.target.value})} /></div>
+              <div className="fg"><label className="fl">Date of Joining</label><input className="fi" placeholder="e.g. 05-07-2024" value={staffForm.doj} onChange={e => setStaffForm({...staffForm, doj: e.target.value})} /></div>
+              <div className="fg"><label className="fl">Phone</label><input className="fi" placeholder="+91 XXXXX XXXXX" value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} /></div>
+              <div className="fg" style={{ gridColumn: 'span 2' }}>
+                <label className="fl">Aadhar Card</label>
+                <label className="btn btn-ghost" style={{ cursor: 'pointer', width: '100%', justifyContent: 'center', fontSize: '13px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  {staffAadhar ? `✓ ${staffAadhar.name}` : (editStaff?.aadhar_url ? 'Replace Aadhar' : 'Upload Aadhar Card')}
+                  <input type="file" hidden accept="image/*,.pdf" onChange={e => { const f = e.target.files[0]; if (f) setStaffAadhar(f); }} />
+                </label>
+                {editStaff?.aadhar_url && !staffAadhar && (
+                  <a href={editStaff.aadhar_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: 'var(--sky)', marginTop: '4px', display: 'inline-block' }}>View existing →</a>
+                )}
+              </div>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '14px', justifyContent: 'flex-end' }}>
-            {editStaff && <button className="btn btn-ghost btn-sm" onClick={() => { setEditStaff(null); setStaffForm({ name:'', employee_id:'', designation:'', account_no:'', bank_name:'', doj:'', phone:'' }); }}>Cancel Edit</button>}
+            {editStaff && <button className="btn btn-ghost btn-sm" onClick={resetStaffForm}>Cancel Edit</button>}
             <button className="btn btn-sky" onClick={saveStaff}>{editStaff ? 'Save Changes' : 'Add Staff'}</button>
           </div>
         </div>
@@ -386,23 +561,41 @@ const OfficeExpensesPage = () => {
         <div className="tw" style={{ border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
           <table>
             <thead>
-              <tr><th>Name</th><th>ID</th><th>Designation</th><th>Account</th><th>Bank</th><th>DOJ</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
+              <tr><th>Photo</th><th>Name</th><th>ID</th><th>Designation</th><th>Bank</th><th>DOJ</th><th>Aadhar</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
             </thead>
             <tbody>
               {staffList.filter(p => p.name.toLowerCase().includes(staffSearch.toLowerCase())).length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text3)' }}>No staff profiles yet. Add one above.</td></tr>
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text3)' }}>No staff profiles yet. Add one above.</td></tr>
               )}
               {staffList.filter(p => p.name.toLowerCase().includes(staffSearch.toLowerCase())).map(p => (
                 <tr key={p.id}>
-                  <td style={{ fontWeight: 700 }}>{p.name}</td>
+                  <td>
+                    {p.photo_url ? (
+                      <img src={p.photo_url} alt={p.name} style={{ width: '36px', height: '44px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                    ) : (
+                      <div style={{ width: '36px', height: '44px', borderRadius: '4px', background: 'var(--bg3)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ fontWeight: 700 }}>{p.name}<div style={{ fontSize: '11px', color: 'var(--text3)' }}>{p.phone || ''}</div></td>
                   <td style={{ fontSize: '12px' }}>{p.employee_id || '—'}</td>
                   <td style={{ fontSize: '12px' }}>{p.designation || '—'}</td>
-                  <td style={{ fontSize: '12px' }}>{p.account_no || '—'}</td>
-                  <td style={{ fontSize: '12px' }}>{p.bank_name || '—'}</td>
+                  <td style={{ fontSize: '12px' }}>{p.bank_name || '—'}<div style={{ fontSize: '10px', color: 'var(--text3)' }}>{p.account_no || ''}</div></td>
                   <td style={{ fontSize: '12px' }}>{p.doj || '—'}</td>
                   <td>
+                    {p.aadhar_url ? (
+                      <a href={p.aadhar_url} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ fontSize: '11px' }}>View</a>
+                    ) : <span style={{ fontSize: '11px', color: 'var(--text3)' }}>—</span>}
+                  </td>
+                  <td>
                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setEditStaff(p); setStaffForm({ name: p.name, employee_id: p.employee_id||'', designation: p.designation||'', account_no: p.account_no||'', bank_name: p.bank_name||'', doj: p.doj||'', phone: p.phone||'' }); }}>Edit</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => {
+                        setEditStaff(p);
+                        setStaffForm({ name: p.name, employee_id: p.employee_id||'', designation: p.designation||'', account_no: p.account_no||'', bank_name: p.bank_name||'', doj: p.doj||'', phone: p.phone||'' });
+                        setPhotoPreview(p.photo_url || null);
+                        setStaffPhoto(null); setStaffAadhar(null);
+                      }}>Edit</button>
                       <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => deleteStaff(p.id, p.name)}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
                       </button>
@@ -553,44 +746,6 @@ const OfficeExpensesPage = () => {
         <>
           <button className="btn btn-ghost" onClick={() => setSlipModal(false)}>Close</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSlipModal('form')}>← Edit</button>
-          <button className="btn btn-ghost btn-sm" style={{ color: '#25a244', border: '1px solid #25a244' }} onClick={async () => {
-            if (!slip.empName) { toast('Select an employee first', 'error'); return; }
-            if (!calc.totalEarnings) { toast('Enter gross wages first', 'error'); return; }
-            const fd = new FormData();
-            fd.append('employee_name',     slip.empName);
-            fd.append('employee_id',       slip.empId || '');
-            fd.append('designation',       slip.designation || '');
-            fd.append('month',             slip.month);
-            fd.append('year',              slip.year);
-            fd.append('gross_wages',       slip.grossWages || 0);
-            fd.append('paid_days',         calc.paidDays);
-            fd.append('total_days',        slip.totalDays || 31);
-            fd.append('lop_days',          slip.lopDays || 0);
-            fd.append('basic',             calc.basic);
-            fd.append('hra',               calc.hra);
-            fd.append('conveyance',        calc.conv);
-            fd.append('medical',           calc.medical);
-            fd.append('other',             calc.other);
-            fd.append('total_earnings',    calc.totalEarnings);
-            fd.append('salary_advance',    calc.salAdv);
-            fd.append('balance_deduction', calc.balDed);
-            fd.append('professional_tax',  calc.profTax);
-            fd.append('total_deductions',  calc.totalDed);
-            fd.append('net_salary',        calc.netSalary);
-            fd.append('note',              `Pay Slip — ${slip.month} ${slip.year}`);
-            try {
-              await axios.post('/salary-history/create', fd);
-              toast(`✅ Salary logged for ${slip.empName}`, 'success');
-              fetchSalaryHistory();
-            } catch (_) { toast('Failed to log salary', 'error'); }
-          }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v14a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Log Salary
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={previewSlip}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            Preview
-          </button>
           <button className="btn btn-ghost btn-sm" onClick={printSlip}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Print
@@ -601,170 +756,12 @@ const OfficeExpensesPage = () => {
           </button>
         </>
       }>
-        {/* ── Slip Preview ── */}
-        <div ref={slipRef}>
-          <div style={{ border: '1px solid #aaa', maxWidth: '680px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#111', background: '#fff' }}>
-
-            {/* ── HEADER ── */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '2px solid #888' }}>
-              <tbody>
-                <tr>
-                  <td style={{ width: '80px', padding: '10px 12px', verticalAlign: 'middle' }}>
-                    <img src="/favicon.png" alt="Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', display: 'block' }} />
-                  </td>
-                  <td style={{ padding: '10px 8px', verticalAlign: 'middle' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: '#1a7ec4', textTransform: 'uppercase', letterSpacing: '1px', lineHeight: 1 }}>ELITE POOL BUILDER</div>
-                    <div style={{ fontSize: '9.5px', color: '#444', marginTop: '5px', lineHeight: '1.7' }}>
-                      <strong>Pillar No: 184 ATTAPUR, RAJENDRA NAGAR MANDAL</strong><br />
-                      Flat No:3 Second Floor 2-4-74/1 SAYEED MANZIL COMPLEX, Hyderabad, Telangana 500030,<br />
-                      E-MAIL: info@elitepoolbuilder.in &nbsp;&nbsp;&nbsp; www.elitepoolbuilder.in
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ── TITLE ── */}
-            <div style={{ background: '#4a8dbf', color: '#fff', textAlign: 'center', padding: '9px 0', fontSize: '15px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-              Pay Slip for {slip.month} {slip.year}
-            </div>
-
-            {/* ── EMPLOYEE DETAILS ── */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '23%', color: '#555', fontSize: '11px' }}>Employee Name</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '27%', fontWeight: 700, fontSize: '11px' }}>{slip.empName || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '23%', color: '#555' }}></td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '27%' }}></td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Employee ID</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}>{slip.empId || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}></td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Account No.</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}>{slip.accountNo || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}>{slip.bankName || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Designation</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', fontWeight: 700 }}>{slip.designation || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Date of Joining</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}>{slip.doj || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ── ATTENDANCE ── */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '23%', color: '#555' }}>Gross Wages</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '27%', textAlign: 'right' }}>₹ {fmt2(slip.grossWages || 0)}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '23%', color: '#555' }}>CL</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '27%' }}>{slip.cl}</td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Total Working Days</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>{slip.totalDays}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Leaves</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}>{slip.leaves}</td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>LOP Days</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>{slip.lopDays}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#555' }}>Paid Days</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}>{calc.paidDays}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ── EARNINGS + DEDUCTIONS ── */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <td colSpan="2" style={{ border: '1px solid #bbb', padding: '6px 10px', background: '#d0e4f5', fontWeight: 'bold', textAlign: 'center', width: '50%', fontSize: '12px' }}>Earnings</td>
-                  <td colSpan="2" style={{ border: '1px solid #bbb', padding: '6px 10px', background: '#d0e4f5', fontWeight: 'bold', textAlign: 'center', width: '50%', fontSize: '12px' }}>Deductions</td>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '23%', color: '#444' }}>Basic</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '27%', textAlign: 'right' }}>₹ {fmt2(calc.basic)}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '23%', color: '#444' }}>Balance Deduction</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', width: '27%', textAlign: 'right' }}>{calc.balDed > 0 ? fmt2(calc.balDed) : '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#444' }}>HRA</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>₹ {fmt2(calc.hra)}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#444' }}>Professional Tax</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>{calc.profTax > 0 ? fmt2(calc.profTax) : '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#444' }}>Conveyance Allowance</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>₹ {fmt2(calc.conv)}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#444' }}>Salary Advance</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>{calc.salAdv > 0 ? fmt2(calc.salAdv) : '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#444' }}>Medical Allowance</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>₹ {fmt2(calc.medical)}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', color: '#444' }}>Other Allowances</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px', textAlign: 'right' }}>₹ {fmt2(calc.other)}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                  <td style={{ border: '1px solid #ccc', padding: '5px 10px' }}></td>
-                </tr>
-                {/* Total row */}
-                <tr>
-                  <td style={{ border: '1px solid #bbb', padding: '6px 10px', fontWeight: 'bold', background: '#f5f5f5' }}>Total Earnings</td>
-                  <td style={{ border: '1px solid #bbb', padding: '6px 10px', fontWeight: 'bold', textAlign: 'right', background: '#f5f5f5' }}>₹ {fmt2(calc.totalEarnings)}</td>
-                  <td style={{ border: '1px solid #bbb', padding: '6px 10px', fontWeight: 'bold', background: '#f5f5f5' }}>Total Deductions</td>
-                  <td style={{ border: '1px solid #bbb', padding: '6px 10px', fontWeight: 'bold', textAlign: 'right', background: '#f5f5f5' }}>{calc.totalDed > 0 ? fmt2(calc.totalDed) : '-'}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ── NET SALARY ── */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                <tr style={{ background: '#4a8dbf' }}>
-                  <td style={{ border: '1px solid #3a7daf', padding: '8px 10px', width: '73%', fontWeight: 'bold', textAlign: 'right', fontSize: '13px', color: '#fff' }}>Net Salary</td>
-                  <td style={{ border: '1px solid #3a7daf', padding: '8px 10px', fontWeight: 'bold', fontSize: '13px', textAlign: 'right', color: '#fff', width: '27%' }}>₹ {fmt2(calc.netSalary)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* ── SIGNATURE ── */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                <tr>
-                  <td style={{ border: '1px solid #ccc', padding: '60px 16px 10px', width: '50%', fontSize: '11px', fontWeight: 'bold', verticalAlign: 'bottom' }}>
-                    RECEIVED SIGNATURE
-                  </td>
-                  <td style={{ border: '1px solid #ccc', padding: '10px 16px', width: '50%', textAlign: 'center', verticalAlign: 'bottom' }}>
-                    <img src="/favicon.png" alt="Seal" style={{ width: '60px', height: '60px', objectFit: 'contain', display: 'block', margin: '0 auto 6px' }} />
-                    <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Authorised Signatory</div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-          </div>
-        </div>
+        {/* ── Slip Preview — same template as PDF ── */}
+        <div
+          ref={slipRef}
+          style={{ maxWidth: '700px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#111', background: '#fff', border: '1px solid #aaa' }}
+          dangerouslySetInnerHTML={{ __html: buildSlipBody() }}
+        />
       </Modal>
     </div>
   );

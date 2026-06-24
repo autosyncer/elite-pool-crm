@@ -3,9 +3,9 @@ import { useAppContext } from '../context/AppContext';
 import Modal from '../components/common/Modal';
 import axios from 'axios';
 
-const CATEGORIES = ['materials', 'equipment', 'labour', 'transport', 'other'];
-const CAT_LABELS = { materials: 'Materials', equipment: 'Equipment', labour: 'Labour', transport: 'Transport', other: 'Other' };
-const CAT_COLORS = { materials: 'var(--sky)', equipment: 'var(--orange, #f97316)', labour: 'var(--green)', transport: '#a855f7', other: 'var(--text3)' };
+const CATEGORIES = ['materials', 'equipment', 'labour', 'transport', 'plumbing', 'civil', 'chemical', 'electrical', 'mechanical', 'water_proofing', 'other'];
+const CAT_LABELS = { materials: 'Materials', equipment: 'Equipment', labour: 'Labour', transport: 'Transport', plumbing: 'Plumbing', civil: 'Civil', chemical: 'Chemical', electrical: 'Electrical', mechanical: 'Mechanical', water_proofing: 'Water Proofing', other: 'Other' };
+const CAT_COLORS = { materials: 'var(--sky)', equipment: '#f97316', labour: 'var(--green)', transport: '#a855f7', plumbing: '#0ea5e9', civil: '#78716c', chemical: '#ef4444', electrical: '#eab308', mechanical: '#6366f1', water_proofing: '#06b6d4', other: 'var(--text3)' };
 
 const Stars = ({ rating }) => (
   <span>
@@ -24,7 +24,7 @@ const VendorListPage = () => {
   const [editVendor, setEditVendor] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const emptyForm = { name: '', category: 'materials', contact_person: '', phone: '', email: '', address: '', rating: 0, notes: '' };
+  const emptyForm = { name: '', category: 'materials', gst_number: '', contact_person: '', phone: '', email: '', address: '', rating: 0, notes: '' };
   const [form, setForm] = useState(emptyForm);
 
   const fetchVendors = async () => {
@@ -42,7 +42,7 @@ const VendorListPage = () => {
   useEffect(() => { fetchVendors(); }, []);
 
   const openAdd = () => { setForm(emptyForm); setEditVendor(null); setAddModal(true); };
-  const openEdit = (v) => { setForm({ name: v.name, category: v.category, contact_person: v.contact_person || '', phone: v.phone || '', email: v.email || '', address: v.address || '', rating: v.rating || 0, notes: v.notes || '' }); setEditVendor(v); setAddModal(true); };
+  const openEdit = (v) => { setForm({ name: v.name, category: v.category, gst_number: v.gst_number || '', contact_person: v.contact_person || '', phone: v.phone || '', email: v.email || '', address: v.address || '', rating: v.rating || 0, notes: v.notes || '' }); setEditVendor(v); setAddModal(true); };
 
   const saveVendor = async () => {
     if (!form.name) { toast('Vendor name required', 'error'); return; }
@@ -119,13 +119,14 @@ const VendorListPage = () => {
         <div className="tw" style={{ border: 'none' }}>
           <table>
             <thead>
-              <tr><th>Vendor Name</th><th>Category</th><th>Contact</th><th>Phone</th><th>Rating</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
+              <tr><th style={{ width: '40px' }}>#</th><th>Vendor Name</th><th>Category</th><th>GST Number</th><th>Contact</th><th>Phone</th><th>Rating</th><th style={{ textAlign: 'right' }}>Actions</th></tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan="6" style={{ textAlign: 'center', padding: '48px', color: 'var(--text3)' }}>Loading...</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', padding: '48px', color: 'var(--text3)' }}>No vendors found</td></tr>}
-              {filtered.map(v => (
+              {loading && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '48px', color: 'var(--text3)' }}>Loading...</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '48px', color: 'var(--text3)' }}>No vendors found</td></tr>}
+              {filtered.map((v, idx) => (
                 <tr key={v.id}>
+                  <td style={{ fontSize: '12px', color: 'var(--text3)', fontWeight: 600 }}>{idx + 1}</td>
                   <td>
                     <div style={{ fontWeight: 700 }}>{v.name}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{v.address || '—'}</div>
@@ -135,6 +136,7 @@ const VendorListPage = () => {
                       {CAT_LABELS[v.category] || v.category}
                     </span>
                   </td>
+                  <td style={{ fontSize: '12px', fontFamily: 'monospace' }}>{v.gst_number || '—'}</td>
                   <td style={{ fontSize: '13px' }}>{v.contact_person || '—'}</td>
                   <td style={{ fontSize: '13px' }}>{v.phone || '—'}</td>
                   <td><Stars rating={v.rating || 0} /></td>
@@ -172,6 +174,7 @@ const VendorListPage = () => {
               {[0,1,2,3,4,5].map(r => <option key={r} value={r}>{r === 0 ? 'Not rated' : '★'.repeat(r)}</option>)}
             </select>
           </div>
+          <div className="fg"><label className="fl">GST Number</label><input className="fi" placeholder="22AAAAA0000A1Z5" value={form.gst_number} onChange={e => setForm({ ...form, gst_number: e.target.value })} /></div>
           <div className="fg"><label className="fl">Contact Person</label><input className="fi" placeholder="Name" value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} /></div>
           <div className="fg"><label className="fl">Phone</label><input className="fi" placeholder="+91 XXXXX XXXXX" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
           <div className="fg"><label className="fl">Email</label><input className="fi" placeholder="vendor@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>

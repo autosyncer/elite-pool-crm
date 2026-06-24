@@ -119,9 +119,9 @@ const LeadTable = ({ type }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredLeads.length > 0 ? filteredLeads.map(l => (
+            {filteredLeads.length > 0 ? filteredLeads.map((l, idx) => (
               <tr key={l.id} onClick={() => navigate(`/leads/${l.id}`)} style={{ cursor: 'pointer' }}>
-                <td className="mono" style={{ fontSize: '11px', color: 'var(--sky)' }}>{l.id}</td>
+                <td className="mono" style={{ fontSize: '12px', color: 'var(--sky)', fontWeight: 700 }}>{filteredLeads.length - idx}</td>
                 <td>
                   <div style={{ fontWeight: 600, color: 'var(--text)' }}>{l.name}</div>
                   <div className="mono" style={{ fontSize: '11px', color: 'var(--text3)' }}>{l.phone}</div>
